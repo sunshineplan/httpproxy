@@ -35,7 +35,7 @@ func initSecrets() {
 	}
 }
 
-func parseSecrets(s []string, debug bool) {
+func parseSecrets(s []string, record bool) {
 	m := make(map[string][]string)
 	for _, row := range s {
 		if i := strings.IndexRune(row, '#'); i != -1 {
@@ -44,8 +44,10 @@ func parseSecrets(s []string, debug bool) {
 		fields := strings.FieldsFunc(row, func(c rune) bool {
 			return unicode.IsSpace(c) || c == ':'
 		})
-		if len(fields) != 2 {
-			if debug {
+		if l := len(fields); l == 0 {
+			continue
+		} else if l != 2 {
+			if record {
 				log.Println("invalid secret:", row)
 			}
 			continue
