@@ -78,7 +78,7 @@ func main() {
 	iniflags.Parse()
 
 	if *secrets == "" {
-		if info, err := os.Stat(filepath.Join(filepath.Dir(self), "secrets")); err != nil && !info.IsDir() {
+		if info, err := os.Stat(filepath.Join(filepath.Dir(self), "secrets")); err == nil && !info.IsDir() {
 			*secrets = filepath.Join(filepath.Dir(self), "secrets")
 		}
 	}

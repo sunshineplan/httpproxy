@@ -6,8 +6,8 @@ import (
 	"os"
 )
 
-var accessLogger = log.Default()
-var errorLogger = log.Default()
+var accessLogger = log.New(os.Stderr, "", log.LstdFlags)
+var errorLogger = log.New(os.Stderr, "", log.LstdFlags)
 
 func initLogger() {
 	if *accesslog != "" {
