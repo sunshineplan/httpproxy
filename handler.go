@@ -16,7 +16,6 @@ func transfer(dst io.WriteCloser, src io.ReadCloser) {
 }
 
 func handleTunneling(w http.ResponseWriter, r *http.Request) {
-	accessLogger.Printf("%s CONNECT %s", r.RemoteAddr, r.URL)
 	dest_conn, err := net.DialTimeout("tcp", r.Host, 10*time.Second)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -42,7 +41,6 @@ func handleTunneling(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleHTTP(w http.ResponseWriter, r *http.Request) {
-	accessLogger.Printf("%s %s %s", r.RemoteAddr, r.Method, r.URL)
 	resp, err := http.DefaultTransport.RoundTrip(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -78,8 +76,11 @@ func parseBasicAuth(auth string) (username, password string, ok bool) {
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
+	user := "anonymous"
+	var pass string
+	var ok bool
 	if len(accounts) != 0 {
-		user, pass, ok := parseBasicAuth(r.Header.Get("Proxy-Authorization"))
+		user, pass, ok = parseBasicAuth(r.Header.Get("Proxy-Authorization"))
 		if !ok {
 			accessLogger.Printf("%s Proxy Authentication Required", r.RemoteAddr)
 			w.Header().Add("Proxy-Authenticate", `Basic realm="HTTPS Proxy"`)
@@ -93,6 +94,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	accessLogger.Printf("%s[%s] %s %s", r.RemoteAddr, user, r.Method, r.URL)
 	if r.Method == http.MethodConnect {
 		handleTunneling(w, r)
 	} else {
