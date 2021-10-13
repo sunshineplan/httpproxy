@@ -83,12 +83,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		user, pass, ok = parseBasicAuth(r.Header.Get("Proxy-Authorization"))
 		if !ok {
 			accessLogger.Printf("%s Proxy Authentication Required", r.RemoteAddr)
-			w.Header().Add("Proxy-Authenticate", `Basic realm="HTTPS Proxy"`)
+			w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
 			w.WriteHeader(http.StatusProxyAuthRequired)
 			return
 		} else if !hasAccount(user, pass) {
 			errorLogger.Printf("%s Proxy Authentication Failed", r.RemoteAddr)
-			w.Header().Add("Proxy-Authenticate", `Basic realm="HTTPS Proxy"`)
+			w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
 			w.WriteHeader(http.StatusProxyAuthRequired)
 			return
 		}
