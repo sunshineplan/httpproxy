@@ -92,6 +92,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "", http.StatusProxyAuthRequired)
 			return
 		}
+		r.Header.Del("Proxy-Authorization")
 	}
 
 	accessLogger.Printf("%s[%s] %s %s", r.RemoteAddr, user, r.Method, r.URL)
