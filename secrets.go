@@ -11,7 +11,7 @@ import (
 	"github.com/sunshineplan/utils/watcher"
 )
 
-var mu sync.Mutex
+var secretsMutex sync.Mutex
 var accounts map[string][]string
 
 func initSecrets() {
@@ -55,15 +55,15 @@ func parseSecrets(s []string, record bool) {
 		m[fields[0]] = append(m[fields[0]], fields[1])
 	}
 
-	mu.Lock()
-	defer mu.Unlock()
+	secretsMutex.Lock()
+	defer secretsMutex.Unlock()
 
 	accounts = m
 }
 
 func hasAccount(user, pass string) bool {
-	mu.Lock()
-	defer mu.Unlock()
+	secretsMutex.Lock()
+	defer secretsMutex.Unlock()
 
 	if v, ok := accounts[user]; ok {
 		for _, i := range v {

@@ -14,6 +14,7 @@ func run() {
 
 	initLogger()
 	initSecrets()
+	initStatus()
 
 	var err error
 	if *https {

@@ -9,13 +9,13 @@ import (
 	"time"
 )
 
-func transfer(dst io.WriteCloser, src io.ReadCloser) {
+func transfer(dst io.WriteCloser, src io.ReadCloser) (int64, error) {
 	defer dst.Close()
 	defer src.Close()
-	io.Copy(dst, src)
+	return io.Copy(dst, src)
 }
 
-func handleTunneling(w http.ResponseWriter, r *http.Request) {
+func handleTunneling(user string, w http.ResponseWriter, r *http.Request) {
 	dest_conn, err := net.DialTimeout("tcp", r.Host, 10*time.Second)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -37,10 +37,11 @@ func handleTunneling(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go transfer(dest_conn, client_conn)
-	go transfer(client_conn, dest_conn)
+	n, _ := transfer(client_conn, dest_conn)
+	count(user, n)
 }
 
-func handleHTTP(w http.ResponseWriter, r *http.Request) {
+func handleHTTP(user string, w http.ResponseWriter, r *http.Request) {
 	resp, err := http.DefaultTransport.RoundTrip(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -55,7 +56,8 @@ func handleHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	n, _ := io.Copy(w, resp.Body)
+	count(user, n)
 }
 
 func parseBasicAuth(auth string) (username, password string, ok bool) {
@@ -97,8 +99,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	accessLogger.Printf("%s[%s] %s %s", r.RemoteAddr, user, r.Method, r.URL)
 	if r.Method == http.MethodConnect {
-		handleTunneling(w, r)
+		handleTunneling(user, w, r)
 	} else {
-		handleHTTP(w, r)
+		handleHTTP(user, w, r)
 	}
 }
