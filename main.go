@@ -18,6 +18,7 @@ var (
 	https     = flag.Bool("https", false, "Serve as HTTPS proxy server")
 	cert      = flag.String("cert", "", "Path to certificate file")
 	privkey   = flag.String("privkey", "", "Path to private key file")
+	status    = flag.String("status", "", "Path to status file")
 	accesslog = flag.String("access-log", "", "Path to access log file")
 	errorlog  = flag.String("error-log", "", "Path to error log file")
 	debug     = flag.Bool("debug", false, "debug")
@@ -58,6 +59,8 @@ func usage() {
     	Path to certificate file
   --privkey <file>
     	Path to private key file
+  --status <file>
+    	Path to status file
   --access-log <file>
     	Path to access log file
   --error-log <file>
@@ -81,6 +84,10 @@ func main() {
 		if info, err := os.Stat(filepath.Join(filepath.Dir(self), "secrets")); err == nil && !info.IsDir() {
 			*secrets = filepath.Join(filepath.Dir(self), "secrets")
 		}
+	}
+
+	if *status == "" {
+		*status = filepath.Join(filepath.Dir(self), "status")
 	}
 
 	if service.IsWindowsService() {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -59,7 +58,7 @@ func getStatus(user string) string {
 }
 
 func saveStatus() {
-	f, err := os.Create(filepath.Join(filepath.Dir(self), "status"))
+	f, err := os.Create(*status)
 	if err != nil {
 		log.Print(err)
 		return

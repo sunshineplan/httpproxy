@@ -23,6 +23,8 @@ configHTTPProxy() {
     done
     read -p 'Please enter cert path: ' cert
     read -p 'Please enter privkey path: ' privkey
+    read -p 'Please enter status path (default: /var/log/httpproxy/status): ' status
+    [ -z $status ] && status=/var/log/httpproxy/status
     read -p 'Please enter access log path (default: /var/log/httpproxy/access.log): ' access
     [ -z $access ] && access=/var/log/httpproxy/access.log
     read -p 'Please enter error log path (default: /var/log/httpproxy/error.log): ' error
@@ -33,6 +35,7 @@ configHTTPProxy() {
     sed -i "s/\$https/$https/" /etc/httpproxy/config.ini
     sed -i "s,\$cert,$cert," /etc/httpproxy/config.ini
     sed -i "s,\$privkey,$privkey," /etc/httpproxy/config.ini
+    sed -i "s,\$status,$status," /etc/httpproxy/config.ini
     sed -i "s,\$access,$access," /etc/httpproxy/config.ini
     sed -i "s,\$error,$error," /etc/httpproxy/config.ini
 }
