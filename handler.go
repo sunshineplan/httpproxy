@@ -9,18 +9,13 @@ import (
 	"time"
 )
 
-func transfer(dst io.WriteCloser, src io.ReadCloser) (int64, error) {
-	defer dst.Close()
-	defer src.Close()
-	return io.Copy(dst, src)
-}
-
 func handleTunneling(user string, w http.ResponseWriter, r *http.Request) {
 	dest_conn, err := net.DialTimeout("tcp", r.Host, 10*time.Second)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
+	defer dest_conn.Close()
 
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
@@ -35,9 +30,10 @@ func handleTunneling(user string, w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
+	defer client_conn.Close()
 
-	go transfer(dest_conn, client_conn)
-	n, _ := transfer(client_conn, dest_conn)
+	go io.Copy(dest_conn, client_conn)
+	n, _ := io.Copy(client_conn, dest_conn)
 	count(user, n)
 }
 

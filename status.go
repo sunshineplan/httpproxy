@@ -67,9 +67,6 @@ func saveStatus() {
 
 	w := txt.NewWriter(f)
 
-	secretsMutex.Lock()
-	defer secretsMutex.Unlock()
-
 	w.WriteLine("Last update: " + time.Now().Format("2006-01-02 15:04:05"))
 	w.WriteLine("")
 	w.WriteLine("[user]: [today]   [monthly]   [total]")
@@ -78,6 +75,10 @@ func saveStatus() {
 	if status != "" {
 		w.WriteLine(fmt.Sprintf("anonymous: %s", status))
 	}
+
+	secretsMutex.Lock()
+	defer secretsMutex.Unlock()
+
 	for user := range accounts {
 		status := getStatus(user)
 		if status != "" {
@@ -92,12 +93,8 @@ func initStatus() {
 
 	ticker := time.NewTicker(time.Minute)
 	go func() {
-		for {
-			<-ticker.C
-
-			if len(accounts) != 0 {
-				saveStatus()
-			}
+		for range ticker.C {
+			saveStatus()
 		}
 	}()
 }
