@@ -34,6 +34,7 @@ var svc = service.Service{
 	TestExec: test,
 	Options: service.Options{
 		Dependencies: []string{"After=network.target"},
+		Others:       []string{"ExecReload=kill -HUP $MAINPID"},
 	},
 }
 
