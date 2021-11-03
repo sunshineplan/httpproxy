@@ -34,7 +34,7 @@ func handleTunneling(user string, w http.ResponseWriter, r *http.Request) {
 
 	go io.Copy(dest_conn, client_conn)
 	n, _ := io.Copy(client_conn, dest_conn)
-	count(user, n)
+	count(user, uint64(n))
 }
 
 func handleHTTP(user string, w http.ResponseWriter, r *http.Request) {
@@ -53,7 +53,7 @@ func handleHTTP(user string, w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(resp.StatusCode)
 	n, _ := io.Copy(w, resp.Body)
-	count(user, n)
+	count(user, uint64(n))
 }
 
 func parseBasicAuth(auth string) (username, password string, ok bool) {

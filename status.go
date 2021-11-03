@@ -17,16 +17,16 @@ var statusMutex sync.Mutex
 
 var fmtBytes = unit.FormatBytes
 
-func set(key string, n int64, d time.Duration) {
+func set(key string, n uint64, d time.Duration) {
 	v, ok := c.Get(key)
 	if ok {
-		c.Set(key, v.(int64)+n, d, nil)
+		c.Set(key, v.(uint64)+n, d, nil)
 	} else {
 		c.Set(key, n, d, nil)
 	}
 }
 
-func count(user string, count int64) {
+func count(user string, count uint64) {
 	statusMutex.Lock()
 	defer statusMutex.Unlock()
 
@@ -36,18 +36,18 @@ func count(user string, count int64) {
 }
 
 func getStatus(user string) string {
-	var total, monthly, today int64
+	var total, monthly, today uint64
 	v, ok := c.Get(user)
 	if ok {
-		total = v.(int64)
+		total = v.(uint64)
 	}
 	v, ok = c.Get(time.Now().Format("2006-01") + user)
 	if ok {
-		monthly = v.(int64)
+		monthly = v.(uint64)
 	}
 	v, ok = c.Get(time.Now().Format("2006-01-02") + user)
 	if ok {
-		today = v.(int64)
+		today = v.(uint64)
 	}
 
 	if total+monthly+today != 0 {
@@ -68,7 +68,7 @@ func saveStatus() {
 	w := txt.NewWriter(f)
 
 	w.WriteLine("Last update: " + time.Now().Format("2006-01-02 15:04:05"))
-	w.WriteLine("")
+	w.WriteLine(fmt.Sprintf("\nThroughput:\nSend:%s   Receive:%s\n", fmtBytes(server.WriteCount()), fmtBytes(server.ReadCount())))
 	w.WriteLine("[user]: [today]   [monthly]   [total]")
 
 	status := getStatus("anonymous")

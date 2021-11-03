@@ -1,8 +1,8 @@
 github.com/sunshineplan/service v1.0.2 h1:VM5uJetOxndXpYtupmUy05rmOk+ITra/A/33qWL1mKI=
 github.com/sunshineplan/service v1.0.2/go.mod h1:o1CiHSmE61pYiHhzGuL+uLYKv079efD0w9LE23N4cSU=
 github.com/sunshineplan/utils v0.0.7/go.mod h1:qMSfTzU5OKJ+CjP/JMP/s+XBb5AduLU820yQbarZzW0=
-github.com/sunshineplan/utils v0.0.15 h1:/h8Y120wR5zPoL90UZSKqyJGijDswLBHOsmNtQKCCRA=
-github.com/sunshineplan/utils v0.0.15/go.mod h1:qMSfTzU5OKJ+CjP/JMP/s+XBb5AduLU820yQbarZzW0=
+github.com/sunshineplan/utils v0.0.17 h1:IEudxUbs/zWYubdYwRVBn+zGarASgZ4FbBfpd+afPxA=
+github.com/sunshineplan/utils v0.0.17/go.mod h1:qMSfTzU5OKJ+CjP/JMP/s+XBb5AduLU820yQbarZzW0=
 github.com/vharitonsky/iniflags v0.0.0-20180513140207-a33cd0b5f3de h1:fkw+7JkxF3U1GzQoX9h69Wvtvxajo5Rbzy6+YMMzPIg=
 github.com/vharitonsky/iniflags v0.0.0-20180513140207-a33cd0b5f3de/go.mod h1:irMhzlTz8+fVFj6CH2AN2i+WI5S6wWFtK3MBCIxIpyI=
 golang.org/x/sys v0.0.0-20210818153620-00dd8d7831e7 h1:/bmDWM82ZX7TawqxuI8kVjKI0TXHdSY6pHJArewwHtU=
