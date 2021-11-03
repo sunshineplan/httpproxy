@@ -68,7 +68,7 @@ func saveStatus() {
 	w := txt.NewWriter(f)
 
 	w.WriteLine("Last update: " + time.Now().Format("2006-01-02 15:04:05"))
-	w.WriteLine(fmt.Sprintf("\nThroughput:\nSend:%s   Receive:%s\n", fmtBytes(server.WriteCount()), fmtBytes(server.ReadCount())))
+	w.WriteLine(fmt.Sprintf("\nThroughput:\nSend: %s   Receive: %s\n", fmtBytes(server.WriteCount()), fmtBytes(server.ReadCount())))
 	w.WriteLine("[user]: [today]   [monthly]   [total]")
 
 	status := getStatus("anonymous")
