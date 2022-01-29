@@ -9,13 +9,21 @@ import (
 	"time"
 )
 
+func transfer(dst io.WriteCloser, src io.ReadCloser, user string) {
+	defer dst.Close()
+	defer src.Close()
+	n, _ := io.Copy(dst, src)
+	if user != "" {
+		count(user, uint64(n))
+	}
+}
+
 func handleTunneling(user string, w http.ResponseWriter, r *http.Request) {
 	dest_conn, err := net.DialTimeout("tcp", r.Host, 10*time.Second)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	defer dest_conn.Close()
 
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
@@ -27,14 +35,13 @@ func handleTunneling(user string, w http.ResponseWriter, r *http.Request) {
 
 	client_conn, _, err := hijacker.Hijack()
 	if err != nil {
+		dest_conn.Close()
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	defer client_conn.Close()
 
-	go io.Copy(dest_conn, client_conn)
-	n, _ := io.Copy(client_conn, dest_conn)
-	count(user, uint64(n))
+	go transfer(dest_conn, client_conn, "")
+	go transfer(client_conn, dest_conn, user)
 }
 
 func handleHTTP(user string, w http.ResponseWriter, r *http.Request) {

@@ -6,11 +6,15 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 func run() {
 	server.Handler = http.HandlerFunc(handler)
 	server.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler))
+	server.ReadTimeout = time.Minute * 10
+	server.ReadHeaderTimeout = time.Second * 4
+	server.WriteTimeout = time.Minute * 10
 
 	initLogger()
 	initSecrets()
