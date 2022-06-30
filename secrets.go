@@ -4,11 +4,10 @@ import (
 	"log"
 	"strings"
 	"sync"
-	"time"
 	"unicode"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/sunshineplan/utils/txt"
-	"github.com/sunshineplan/utils/watcher"
 )
 
 var secretsMutex sync.Mutex
@@ -19,17 +18,33 @@ func initSecrets() {
 		rows, err := txt.ReadFile(*secrets)
 		if err != nil {
 			log.Println("failed to load secrets file:", err)
-			return
 		}
 		parseSecrets(rows, true)
 
-		w := watcher.New(*secrets, time.Second)
+		w, err := fsnotify.NewWatcher()
+		if err != nil {
+			log.Print(err)
+			return
+		}
+		if err = w.Add(*secrets); err != nil {
+			log.Print(err)
+			return
+		}
+
 		go func() {
 			for {
-				<-w.C
+				event, ok := <-w.Events
+				if !ok {
+					return
+				}
 
-				rows, _ := txt.ReadFile(*secrets)
-				parseSecrets(rows, false)
+				switch event.Op.String() {
+				case "WRITE", "CREATE":
+					rows, _ := txt.ReadFile(*secrets)
+					parseSecrets(rows, false)
+				case "REMOVE", "RENAME":
+					parseSecrets(nil, false)
+				}
 			}
 		}()
 	}
