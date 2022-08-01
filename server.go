@@ -9,8 +9,6 @@ import (
 	"time"
 )
 
-var start time.Time
-
 func run() {
 	server.Handler = http.HandlerFunc(handler)
 	server.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler))
@@ -21,8 +19,6 @@ func run() {
 	initLogger()
 	initSecrets()
 	initStatus()
-
-	start = time.Now()
 
 	var err error
 	if *https {

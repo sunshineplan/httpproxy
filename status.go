@@ -15,6 +15,7 @@ import (
 
 var c = cache.New(true)
 var statusMutex sync.Mutex
+var start time.Time
 
 var fmtBytes = unit.FormatBytes
 
@@ -125,6 +126,7 @@ func saveStatus() {
 }
 
 func initStatus() {
+	start = time.Now()
 	saveStatus()
 
 	ticker := time.NewTicker(time.Minute)
