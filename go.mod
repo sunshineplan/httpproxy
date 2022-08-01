@@ -9,4 +9,4 @@ require (
 	github.com/vharitonsky/iniflags v0.0.0-20180513140207-a33cd0b5f3de
 )
 
-require golang.org/x/sys v0.0.0-20220627191245-f75cf1eec38b // indirect
+require golang.org/x/sys v0.0.0-20220731174439-a90be440212d // indirect
