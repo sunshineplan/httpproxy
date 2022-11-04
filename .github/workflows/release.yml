@@ -28,7 +28,7 @@ jobs:
         run: |
           go build -ldflags "-s -w"
           GOOS=windows go build -ldflags "-s -w"
-          echo "::set-output name=date::$(TZ=PRC date +'%Y-%m-%d')"
+          echo "date=$(TZ=PRC date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Delete Old Release
         uses: actions/github-script@v6
