@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/sunshineplan/service"
+	"github.com/sunshineplan/utils/flags"
 	"github.com/sunshineplan/utils/httpsvr"
-	"github.com/vharitonsky/iniflags"
 )
 
 var (
@@ -19,6 +19,7 @@ var (
 	cert      = flag.String("cert", "", "Path to certificate file")
 	privkey   = flag.String("privkey", "", "Path to private key file")
 	status    = flag.String("status", "", "Path to status file")
+	keep      = flag.Int("keep", 100, "Count of status files")
 	accesslog = flag.String("access-log", "", "Path to access log file")
 	errorlog  = flag.String("error-log", "", "Path to error log file")
 	debug     = flag.Bool("debug", false, "debug")
@@ -76,10 +77,8 @@ func main() {
 	flag.StringVar(&server.Host, "host", "", "Listening host")
 	flag.StringVar(&server.Port, "port", "", "Listening port")
 	flag.StringVar(&svc.Options.UpdateURL, "update", "", "Update URL")
-	iniflags.SetConfigFile(filepath.Join(filepath.Dir(self), "config.ini"))
-	iniflags.SetAllowMissingConfigFile(true)
-	iniflags.SetAllowUnknownFlags(true)
-	iniflags.Parse()
+	flags.SetConfigFile(filepath.Join(filepath.Dir(self), "config.ini"))
+	flags.Parse()
 
 	if *secrets == "" {
 		if info, err := os.Stat(filepath.Join(filepath.Dir(self), "secrets")); err == nil && !info.IsDir() {

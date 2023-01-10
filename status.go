@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"strings"
@@ -108,6 +110,30 @@ func writeStatus(w *txt.Writer) {
 }
 
 func saveStatus() {
+	if _, err := os.Stat(*status); err == nil || !errors.Is(err, fs.ErrNotExist) {
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			log.Print(err)
+			return
+		}
+
+		var file string
+		for i := 1; err == nil; i++ {
+			if i > *keep {
+				log.Printf("exceed %d status files", *keep)
+				return
+			}
+			file = fmt.Sprint(*status, ".", i)
+			if _, err = os.Stat(file); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				log.Print(err)
+				return
+			}
+		}
+		if err := os.Rename(*status, file); err != nil {
+			log.Print(err)
+			return
+		}
+	}
+
 	f, err := os.Create(*status)
 	if err != nil {
 		log.Print(err)
