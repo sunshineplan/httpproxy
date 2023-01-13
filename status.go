@@ -110,6 +110,24 @@ func writeStatus(w *txt.Writer) {
 }
 
 func saveStatus() {
+	f, err := os.Create(*status)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	defer f.Close()
+
+	w := txt.NewWriter(f)
+	defer w.Flush()
+
+	w.WriteLine("Start time: " + start.Format("2006-01-02 15:04:05"))
+	w.WriteLine("Last update: " + time.Now().Format("2006-01-02 15:04:05"))
+	w.WriteLine(fmt.Sprintf("\nThroughput:\nSend: %s   Receive: %s\n", fmtBytes(server.WriteCount()), fmtBytes(server.ReadCount())))
+
+	writeStatus(w)
+}
+
+func initStatus() {
 	if _, err := os.Stat(*status); err == nil || !errors.Is(err, fs.ErrNotExist) {
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			log.Print(err)
@@ -134,24 +152,6 @@ func saveStatus() {
 		}
 	}
 
-	f, err := os.Create(*status)
-	if err != nil {
-		log.Print(err)
-		return
-	}
-	defer f.Close()
-
-	w := txt.NewWriter(f)
-	defer w.Flush()
-
-	w.WriteLine("Start time: " + start.Format("2006-01-02 15:04:05"))
-	w.WriteLine("Last update: " + time.Now().Format("2006-01-02 15:04:05"))
-	w.WriteLine(fmt.Sprintf("\nThroughput:\nSend: %s   Receive: %s\n", fmtBytes(server.WriteCount()), fmtBytes(server.ReadCount())))
-
-	writeStatus(w)
-}
-
-func initStatus() {
 	start = time.Now()
 	saveStatus()
 
