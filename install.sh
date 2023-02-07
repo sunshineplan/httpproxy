@@ -8,11 +8,13 @@ installHTTPProxy() {
 }
 
 configHTTPProxy() {
+    touch /etc/httpproxy/whitelist
     touch /etc/httpproxy/secrets
     read -p 'Please enter host (default: 0.0.0.0): ' host
     [ -z $host ] && host=0.0.0.0
     read -p 'Please enter port (default: 8080): ' port
     [ -z $port ] && port=8080
+    read -p 'Please enter whitelist path: ' whitelist
     read -p 'Please enter secrets path: ' secrets
     while true
     do
@@ -32,6 +34,7 @@ configHTTPProxy() {
     sed "s/\$host/$host/" /etc/httpproxy/config.ini.default > /etc/httpproxy/config.ini
     sed -i "s/\$port/$port/" /etc/httpproxy/config.ini
     sed -i "s,\$secrets,$secrets," /etc/httpproxy/config.ini
+    sed -i "s,\$whitelist,$whitelist," /etc/httpproxy/config.ini
     sed -i "s/\$https/$https/" /etc/httpproxy/config.ini
     sed -i "s,\$cert,$cert," /etc/httpproxy/config.ini
     sed -i "s,\$privkey,$privkey," /etc/httpproxy/config.ini

@@ -18,6 +18,7 @@ var (
 	https     = flag.Bool("https", false, "Serve as HTTPS proxy server")
 	cert      = flag.String("cert", "", "Path to certificate file")
 	privkey   = flag.String("privkey", "", "Path to private key file")
+	whitelist = flag.String("whitelist", "", "Path to whitelist file")
 	status    = flag.String("status", "", "Path to status file")
 	keep      = flag.Int("keep", 100, "Count of status files")
 	accesslog = flag.String("access-log", "", "Path to access log file")
@@ -53,6 +54,8 @@ func usage() {
     	Listening host
   --port <number>
     	Listening port
+  --whitelist <file>
+    	Path to whitelist file
   --secrets <file>
     	Path to secrets file for Basic Authentication
   --https

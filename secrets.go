@@ -6,12 +6,13 @@ import (
 	"sync"
 	"unicode"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/sunshineplan/utils/txt"
 )
 
-var secretsMutex sync.Mutex
-var accounts map[string][]string
+var (
+	secretsMutex sync.Mutex
+	accounts     map[string][]string
+)
 
 func initSecrets() {
 	if *secrets != "" {
@@ -21,32 +22,17 @@ func initSecrets() {
 		}
 		parseSecrets(rows, true)
 
-		w, err := fsnotify.NewWatcher()
-		if err != nil {
+		if err := watcherFile(
+			*secrets,
+			func() {
+				rows, _ := txt.ReadFile(*secrets)
+				parseSecrets(rows, false)
+			},
+			func() { parseSecrets(nil, false) },
+		); err != nil {
 			log.Print(err)
 			return
 		}
-		if err = w.Add(*secrets); err != nil {
-			log.Print(err)
-			return
-		}
-
-		go func() {
-			for {
-				event, ok := <-w.Events
-				if !ok {
-					return
-				}
-
-				switch event.Op.String() {
-				case "WRITE", "CREATE":
-					rows, _ := txt.ReadFile(*secrets)
-					parseSecrets(rows, false)
-				case "REMOVE", "RENAME":
-					parseSecrets(nil, false)
-				}
-			}
-		}()
 	}
 }
 

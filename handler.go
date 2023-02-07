@@ -84,7 +84,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	user := "anonymous"
 	var pass string
 	var ok bool
-	if len(accounts) != 0 {
+	if len(accounts) == 0 && len(allows) != 0 && !isAllow(r.RemoteAddr) {
+		accessLogger.Printf("%s not allow", r.RemoteAddr)
+		return
+	} else if len(accounts) != 0 && !isAllow(r.RemoteAddr) {
 		user, pass, ok = parseBasicAuth(r.Header.Get("Proxy-Authorization"))
 		if !ok {
 			accessLogger.Printf("%s Proxy Authentication Required", r.RemoteAddr)

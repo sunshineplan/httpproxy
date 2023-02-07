@@ -17,6 +17,7 @@ func run() {
 	server.WriteTimeout = time.Minute * 10
 
 	initLogger()
+	initWhitelist()
 	initSecrets()
 	initStatus()
 

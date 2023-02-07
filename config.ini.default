@@ -4,6 +4,7 @@ secrets    = $secrets
 https      = $https
 cert       = $cert
 privkey    = $privkey
+whitelist  = $whitelist
 status     = $status
 access-log = $access
 error-log  = $error
