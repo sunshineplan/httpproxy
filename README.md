@@ -21,27 +21,51 @@ go build
 
 ## Usage
 
-### Command Line
+### Common Command
 
 ```
   --host <string>
     	Listening host
   --port <number>
     	Listening port
-  --secrets <file>
-    	Path to secrets file
-  --https
-    	Serve as HTTPS proxy server
-  --cert <file>
-    	Path to certificate file
-  --privkey <file>
-    	Path to private key file
+  --mode <string>
+    	Specify server or client mode (default: server)
   --access-log <file>
     	Path to access log file
   --error-log <file>
     	Path to error log file
   --update <url>
     	Update URL
+```
+
+### Server Command
+
+```
+  --https
+    	Serve as HTTPS proxy server
+  --cert <file>
+    	Path to certificate file
+  --privkey <file>
+    	Path to private key file
+  --secrets <file>
+    	Path to secrets file for Basic Authentication
+  --whitelist <file>
+    	Path to whitelist file
+  --status <file>
+    	Path to status file
+  --keep number
+    	Count of status files (default: 100)
+```
+
+### Client Command
+
+```
+  --proxy <string>
+    	Proxy address
+  --username <string>
+    	Username for Basic Authentication
+  --password <string>
+    	Password for Basic Authentication
 ```
 
 ### Service Command
@@ -67,7 +91,7 @@ go build
 
 ## Example config
 
-### config.ini
+### config.ini(server)
 
 ```
 host       = 0.0.0.0
@@ -77,6 +101,22 @@ cert       = cert.pem
 privkey    = privkey.pem
 access-log = /var/log/httpproxy/access.log
 error-log  = /var/log/httpproxy/error.log
+```
+
+### config.ini(client)
+
+```
+port       = 1080
+proxy      = https://proxy:443
+username   = proxy
+password   = proxy
+```
+
+### whitelist
+
+```
+8.8.8.8
+10.0.0.0/8
 ```
 
 ### secrets

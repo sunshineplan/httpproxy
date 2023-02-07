@@ -1,46 +1,112 @@
 package main
 
 import (
-	"crypto/tls"
-	"log"
+	"encoding/base64"
+	"io"
 	"net"
 	"net/http"
-	"strconv"
+	"strings"
 	"time"
 )
 
-func run() {
-	server.Handler = http.HandlerFunc(handler)
-	server.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler))
-	server.ReadTimeout = time.Minute * 10
-	server.ReadHeaderTimeout = time.Second * 4
-	server.WriteTimeout = time.Minute * 10
-
-	initLogger()
-	initWhitelist()
-	initSecrets()
-	initStatus()
-
-	var err error
-	if *https {
-		err = server.RunTLS(*cert, *privkey)
-	} else {
-		err = server.Run()
-	}
-	if err != nil {
-		log.Fatal(err)
+func transfer(dst io.WriteCloser, src io.ReadCloser, user string) {
+	defer dst.Close()
+	defer src.Close()
+	n, _ := io.Copy(dst, src)
+	if user != "" {
+		count(user, uint64(n))
 	}
 }
 
-func test() error {
-	port, err := strconv.Atoi(server.Port)
+func serverTunneling(user string, w http.ResponseWriter, r *http.Request) {
+	dest_conn, err := net.DialTimeout("tcp", r.Host, 10*time.Second)
 	if err != nil {
-		return err
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
 	}
-	l, err := net.ListenTCP("tcp", &net.TCPAddr{Port: port})
+
+	hijacker, ok := w.(http.Hijacker)
+	if !ok {
+		http.Error(w, "Hijacking not supported", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+	client_conn, _, err := hijacker.Hijack()
 	if err != nil {
-		return err
+		dest_conn.Close()
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
 	}
-	l.Close()
-	return nil
+
+	go transfer(dest_conn, client_conn, "")
+	go transfer(client_conn, dest_conn, user)
+}
+
+func serverHTTP(user string, w http.ResponseWriter, r *http.Request) {
+	resp, err := http.DefaultTransport.RoundTrip(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	defer resp.Body.Close()
+
+	header := w.Header()
+	for k, vv := range resp.Header {
+		for _, v := range vv {
+			header.Add(k, v)
+		}
+	}
+	w.WriteHeader(resp.StatusCode)
+	n, _ := io.Copy(w, resp.Body)
+	count(user, uint64(n))
+}
+
+func parseBasicAuth(auth string) (username, password string, ok bool) {
+	const prefix = "Basic "
+	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
+		return
+	}
+	c, err := base64.StdEncoding.DecodeString(auth[len(prefix):])
+	if err != nil {
+		return
+	}
+	cs := string(c)
+	s := strings.IndexByte(cs, ':')
+	if s < 0 {
+		return
+	}
+	return cs[:s], cs[s+1:], true
+}
+
+func serverHandler(w http.ResponseWriter, r *http.Request) {
+	user := "anonymous"
+	var pass string
+	var ok bool
+	if len(accounts) == 0 && len(allows) != 0 && !isAllow(r.RemoteAddr) {
+		accessLogger.Printf("%s not allow", r.RemoteAddr)
+		return
+	} else if len(accounts) != 0 && !isAllow(r.RemoteAddr) {
+		user, pass, ok = parseBasicAuth(r.Header.Get("Proxy-Authorization"))
+		if !ok {
+			accessLogger.Printf("%s Proxy Authentication Required", r.RemoteAddr)
+			w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
+			http.Error(w, "", http.StatusProxyAuthRequired)
+			return
+		} else if !hasAccount(user, pass) {
+			errorLogger.Printf("%s Proxy Authentication Failed", r.RemoteAddr)
+			w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
+			http.Error(w, "", http.StatusProxyAuthRequired)
+			return
+		}
+		r.Header.Del("Proxy-Authorization")
+	}
+
+	accessLogger.Printf("%s[%s] %s %s", r.RemoteAddr, user, r.Method, r.URL)
+	if r.Method == http.MethodConnect {
+		serverTunneling(user, w, r)
+	} else {
+		serverHTTP(user, w, r)
+	}
 }
