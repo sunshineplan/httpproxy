@@ -94,6 +94,7 @@ go build
 ### config.ini(server)
 
 ```
+mode       = server
 host       = 0.0.0.0
 port       = 443
 https      = true
@@ -106,10 +107,11 @@ error-log  = /var/log/httpproxy/error.log
 ### config.ini(client)
 
 ```
-port       = 1080
-proxy      = https://proxy:443
-username   = proxy
-password   = proxy
+mode     = client
+port     = 1080
+proxy    = https://proxy:443
+username = proxy
+password = proxy
 ```
 
 ### whitelist
