@@ -129,28 +129,14 @@ func saveStatus() {
 }
 
 func initStatus() {
-	if _, err := os.Stat(*status); err == nil || !errors.Is(err, fs.ErrNotExist) {
-		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+	if _, err := os.Stat(*status); err == nil {
+		if err := keepStatus(0); err != nil {
 			log.Print(err)
 			return
 		}
-
-		var file string
-		for i := 1; err == nil; i++ {
-			if i > *keep {
-				log.Printf("exceed %d status files", *keep)
-				return
-			}
-			file = fmt.Sprint(*status, ".", i)
-			if _, err = os.Stat(file); err != nil && !errors.Is(err, fs.ErrNotExist) {
-				log.Print(err)
-				return
-			}
-		}
-		if err := os.Rename(*status, file); err != nil {
-			log.Print(err)
-			return
-		}
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		log.Print(err)
+		return
 	}
 
 	start = time.Now()
@@ -162,4 +148,27 @@ func initStatus() {
 			saveStatus()
 		}
 	}()
+}
+
+func keepStatus(n int) (err error) {
+	var src string
+	if n == 0 {
+		src = *status
+	} else {
+		src = fmt.Sprint(*status, ".", n)
+	}
+	dst := fmt.Sprint(*status, ".", n+1)
+	if n >= *keep {
+		return os.Remove(src)
+	}
+	if _, err = os.Stat(dst); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return
+	} else if errors.Is(err, fs.ErrNotExist) {
+		return os.Rename(src, dst)
+	} else {
+		defer func() {
+			err = keepStatus(n)
+		}()
+		return keepStatus(n + 1)
+	}
 }
