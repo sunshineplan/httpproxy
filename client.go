@@ -24,7 +24,7 @@ func initProxy() {
 	}
 }
 
-func clientTunneling(w http.ResponseWriter, r *http.Request) {
+func clientTunneling(user string, w http.ResponseWriter, r *http.Request) {
 	dest_conn, resp, err := p.DialWithHeader(r.Host, r.Header)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -50,10 +50,10 @@ func clientTunneling(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go transfer(dest_conn, client_conn, "")
-	go transfer(client_conn, dest_conn, "")
+	go transfer(client_conn, dest_conn, user)
 }
 
-func clientHTTP(w http.ResponseWriter, r *http.Request) {
+func clientHTTP(user string, w http.ResponseWriter, r *http.Request) {
 	port := r.URL.Port()
 	if port == "" {
 		port = "80"
@@ -91,7 +91,8 @@ func clientHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	n, _ := io.Copy(w, resp.Body)
+	count(user, uint64(n))
 }
 
 func clientHandler(w http.ResponseWriter, r *http.Request) {
@@ -100,8 +101,8 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	accessLogger.Printf("%s %s %s", r.RemoteAddr, r.Method, r.URL)
 	if r.Method == http.MethodConnect {
-		clientTunneling(w, r)
+		clientTunneling(r.RemoteAddr, w, r)
 	} else {
-		clientHTTP(w, r)
+		clientHTTP(r.RemoteAddr, w, r)
 	}
 }

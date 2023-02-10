@@ -40,6 +40,7 @@ func runClient() {
 
 	initProxy()
 	initLogger()
+	initStatus()
 
 	if err := server.Run(); err != nil {
 		log.Fatal(err)

@@ -45,12 +45,16 @@ type statusResult struct {
 
 var emptyStatus statusResult
 
-func (res statusResult) String(length [4]int) (output string) {
-	output += res.user + strings.Repeat(" ", length[0]-len(res.user)+3)
-	output += res.today + strings.Repeat(" ", length[1]-len(res.today)+3)
-	output += res.monthly + strings.Repeat(" ", length[2]-len(res.monthly)+3)
-	output += res.total + strings.Repeat(" ", length[3]-len(res.total)+3)
-	return
+func (res statusResult) String(length [3]int) string {
+	var b strings.Builder
+	b.WriteString(res.user)
+	b.WriteString(strings.Repeat(" ", length[0]-len(res.user)+3))
+	b.WriteString(res.today)
+	b.WriteString(strings.Repeat(" ", length[1]-len(res.today)+3))
+	b.WriteString(res.monthly)
+	b.WriteString(strings.Repeat(" ", length[2]-len(res.monthly)+3))
+	b.WriteString(res.total)
+	return b.String()
 }
 
 func getStatus(user string) (res statusResult) {
@@ -88,7 +92,7 @@ func writeStatus(w *txt.Writer) {
 	}
 	secretsMutex.Unlock()
 
-	var length [4]int
+	var length [3]int
 	for _, i := range res {
 		if l := len(i.user); l > length[0] {
 			length[0] = l
@@ -98,9 +102,6 @@ func writeStatus(w *txt.Writer) {
 		}
 		if l := len(i.monthly); l > length[2] {
 			length[2] = l
-		}
-		if l := len(i.total); l > length[3] {
-			length[3] = l
 		}
 	}
 
