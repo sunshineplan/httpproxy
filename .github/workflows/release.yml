@@ -62,7 +62,8 @@ jobs:
       - name: Pack
         run: |
           tar cvzf release-linux.tar.gz httpproxy config.ini.default secrets.default
-          tar cvzf release-darwin-arm64.tar.gz httpproxy-darwin-arm64 config.ini.default secrets.default
+          mv -f httpproxy-darwin-arm64 httpproxy
+          tar cvzf release-darwin-arm64.tar.gz httpproxy config.ini.default secrets.default
           zip -9vr release-windows.zip httpproxy.exe config.ini.default secrets.default
 
       - name: Create Release
