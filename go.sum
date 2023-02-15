@@ -2,8 +2,8 @@ github.com/fsnotify/fsnotify v1.6.0 h1:n+5WquG0fcWoWp6xPWfHdbskMCQaFnG6PfBrh1Ky4
 github.com/fsnotify/fsnotify v1.6.0/go.mod h1:sl3t1tCWJFWoRz9R8WJCbQihKKwmorjAbSClcnxKAGw=
 github.com/sunshineplan/service v1.0.6 h1:83NxPW6JOKxtOCx+3goqHyTto2AYgJ4oQaz8gMCAzqU=
 github.com/sunshineplan/service v1.0.6/go.mod h1:++97KQ1jLRdPFAcnWSTUzs6fd1qboaGMgbMaA7zh9Lc=
-github.com/sunshineplan/utils v0.1.21 h1:jxghy+F8NCNHeGFwt9rr3hoTRLriqqhsEfKXRVv22Fk=
-github.com/sunshineplan/utils v0.1.21/go.mod h1:HfKwfZdb8gYzo451GrkSqdNQE6xVRtdLJ6gZV5XRaC4=
+github.com/sunshineplan/utils v0.1.22 h1:jG4wX98nagYkeQPGtiKr0u+Qa0u4pvQF4cvI/jrMeL4=
+github.com/sunshineplan/utils v0.1.22/go.mod h1:HfKwfZdb8gYzo451GrkSqdNQE6xVRtdLJ6gZV5XRaC4=
 github.com/sunshineplan/utils/httpproxy v1.0.5 h1:rf3UuO4QaPNgOgZgE5HEqoFWZ2SgSx40EbkwgZFozh4=
 github.com/sunshineplan/utils/httpproxy v1.0.5/go.mod h1:SJIuInpFyue5S0NDIjQ5aXaVK9vm9e+yTiKk9HC7vPc=
 golang.org/x/net v0.6.0 h1:L4ZwwTvKW9gr0ZMS1yrHD9GZhIuVjOBBnaKH+SPQK0Q=
