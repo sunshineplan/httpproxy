@@ -38,8 +38,8 @@ func runServer() {
 func runClient() {
 	server.Handler = http.HandlerFunc(clientHandler)
 
-	initProxy()
 	initLogger()
+	initProxy()
 	initStatus()
 
 	if err := server.Run(); err != nil {

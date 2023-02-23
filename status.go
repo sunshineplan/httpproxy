@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"log"
 	"os"
 	"strings"
 	"sync"
@@ -18,8 +17,6 @@ import (
 var c = cache.New(true)
 var statusMutex sync.Mutex
 var start time.Time
-
-var fmtBytes = unit.FormatBytes
 
 func set(key string, n uint64, d time.Duration) {
 	v, ok := c.Get(key)
@@ -73,7 +70,7 @@ func getStatus(user string) (res statusResult) {
 	}
 
 	if total+monthly+today != 0 {
-		res = statusResult{user, fmtBytes(today), fmtBytes(monthly), fmtBytes(total)}
+		res = statusResult{user, unit.FormatBytes(today), unit.FormatBytes(monthly), unit.FormatBytes(total)}
 	}
 
 	return
@@ -113,7 +110,7 @@ func writeStatus(w *txt.Writer) {
 func saveStatus() {
 	f, err := os.Create(*status)
 	if err != nil {
-		log.Print(err)
+		errorLogger.Print(err)
 		return
 	}
 	defer f.Close()
@@ -123,19 +120,22 @@ func saveStatus() {
 
 	w.WriteLine("Start time: " + start.Format("2006-01-02 15:04:05"))
 	w.WriteLine("Last update: " + time.Now().Format("2006-01-02 15:04:05"))
-	w.WriteLine(fmt.Sprintf("\nThroughput:\nSend: %s   Receive: %s\n", fmtBytes(server.WriteCount()), fmtBytes(server.ReadCount())))
-
+	w.WriteLine(fmt.Sprintf(
+		"\nThroughput:\nSend: %s   Receive: %s\n",
+		unit.FormatBytes(uint64(server.WriteCount())),
+		unit.FormatBytes(uint64(server.ReadCount())),
+	))
 	writeStatus(w)
 }
 
 func initStatus() {
 	if _, err := os.Stat(*status); err == nil {
 		if err := keepStatus(0); err != nil {
-			log.Print(err)
+			errorLogger.Print(err)
 			return
 		}
 	} else if !errors.Is(err, fs.ErrNotExist) {
-		log.Print(err)
+		errorLogger.Print(err)
 		return
 	}
 

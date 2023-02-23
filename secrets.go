@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"strings"
 	"sync"
 	"unicode"
@@ -18,19 +17,23 @@ func initSecrets() {
 	if *secrets != "" {
 		rows, err := txt.ReadFile(*secrets)
 		if err != nil {
-			log.Println("failed to load secrets file:", err)
+			errorLogger.Println("failed to load secrets file:", err)
 		}
 		parseSecrets(rows, true)
 
 		if err := watcherFile(
 			*secrets,
 			func() {
-				rows, _ := txt.ReadFile(*secrets)
-				parseSecrets(rows, false)
+				rows, err := txt.ReadFile(*secrets)
+				if err != nil {
+					errorLogger.Print(err)
+				} else {
+					parseSecrets(rows, false)
+				}
 			},
 			func() { parseSecrets(nil, false) },
 		); err != nil {
-			log.Print(err)
+			errorLogger.Print(err)
 			return
 		}
 	}
@@ -49,12 +52,13 @@ func parseSecrets(s []string, record bool) {
 			continue
 		} else if l != 2 {
 			if record {
-				log.Println("invalid secret:", row)
+				errorLogger.Println("invalid secret:", row)
 			}
 			continue
 		}
 		m[fields[0]] = append(m[fields[0]], fields[1])
 	}
+	accessLogger.Printf("loaded %d accounts", len(m))
 
 	secretsMutex.Lock()
 	defer secretsMutex.Unlock()

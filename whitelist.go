@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"net/netip"
 	"sync"
 
@@ -21,7 +20,7 @@ func isValidAllow(s string) (allow, bool) {
 	} else if _, err := netip.ParsePrefix(s); err == nil {
 		return allow(s), true
 	}
-	log.Println("can not parse:", s)
+	errorLogger.Println("can not parse:", s)
 	return "", false
 }
 
@@ -42,7 +41,7 @@ func initWhitelist() {
 	if *whitelist != "" {
 		rows, err := txt.ReadFile(*whitelist)
 		if err != nil {
-			log.Println("failed to load whitelist file:", err)
+			errorLogger.Println("failed to load whitelist file:", err)
 		}
 		parseWhitelist(rows)
 
@@ -54,7 +53,7 @@ func initWhitelist() {
 			},
 			func() { parseWhitelist(nil) },
 		); err != nil {
-			log.Print(err)
+			errorLogger.Print(err)
 			return
 		}
 	}

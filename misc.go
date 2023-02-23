@@ -1,9 +1,6 @@
 package main
 
 import (
-	"log"
-	"time"
-
 	"github.com/fsnotify/fsnotify"
 )
 
@@ -17,24 +14,19 @@ func watcherFile(file string, fnChange, fnRemove func()) error {
 	}
 
 	go func() {
-		last := time.Now()
 		for event := range w.Events {
-			if now := time.Now(); now.Sub(last) > time.Second {
-				log.Println(file, "operation:", event.Op)
-				last = now
-			} else {
-				log.Println(file, "ignore operation:", event.Op)
-				continue
-			}
+			accessLogger.Println(file, "operation:", event.Op)
 			switch {
 			case event.Has(fsnotify.Create), event.Has(fsnotify.Write):
+				accessLogger.Println(file, "changed")
 				fnChange()
 			case event.Has(fsnotify.Remove), event.Has(fsnotify.Rename):
+				accessLogger.Println(file, "removed")
 				fnRemove()
 			case event.Has(fsnotify.Chmod):
 
 			default:
-				log.Println(file, "watcher closed")
+				accessLogger.Println(file, "watcher closed")
 				return
 			}
 		}
