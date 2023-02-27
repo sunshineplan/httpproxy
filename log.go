@@ -38,4 +38,5 @@ func initLogger() {
 	} else if !*debug {
 		errorLogger.SetOutput(io.Discard)
 	}
+	server.ErrorLog = errorLogger
 }
