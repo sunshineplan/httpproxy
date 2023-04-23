@@ -23,14 +23,6 @@ jobs:
         with:
           go-version: stable
 
-      - name: Build
-        id: build
-        run: |
-          go build -ldflags "-s -w"
-          GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w" -o httpproxy-darwin-arm64
-          GOOS=windows go build -ldflags "-s -w"
-          echo "date=$(TZ=PRC date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
-
       - name: Delete Old Release
         uses: actions/github-script@v6
         with:
@@ -59,12 +51,11 @@ jobs:
               ref: 'tags/v1.0'
             })
 
-      - name: Pack
+      - name: Build and Pack
+        id: build
         run: |
-          tar cvzf release-linux.tar.gz httpproxy config.ini.default secrets.default
-          mv -f httpproxy-darwin-arm64 httpproxy
-          tar cvzf release-darwin-arm64.tar.gz httpproxy config.ini.default secrets.default
-          zip -9vr release-windows.zip httpproxy.exe config.ini.default secrets.default
+          make pack
+          echo "date=$(TZ=PRC date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@v1

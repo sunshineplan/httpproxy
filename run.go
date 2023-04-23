@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/tls"
 	"errors"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -12,7 +11,7 @@ import (
 	"time"
 )
 
-func runServer() {
+func runServer() error {
 	server.Handler = http.HandlerFunc(serverHandler)
 	server.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler))
 	server.ReadTimeout = time.Minute * 10
@@ -24,43 +23,37 @@ func runServer() {
 	initSecrets()
 	initStatus()
 
-	var err error
 	if *https {
-		err = server.RunTLS(*cert, *privkey)
+		return server.RunTLS(*cert, *privkey)
 	} else {
-		err = server.Run()
-	}
-	if err != nil {
-		log.Fatal(err)
+		return server.Run()
 	}
 }
 
-func runClient() {
+func runClient() error {
 	server.Handler = http.HandlerFunc(clientHandler)
 
 	initLogger()
 	initProxy()
 	initStatus()
 
-	if err := server.Run(); err != nil {
-		log.Fatal(err)
-	}
+	return server.Run()
 }
 
-func run() {
-	switch strings.ToLower(*mode) {
+func run() error {
+	switch mode := strings.ToLower(*mode); mode {
 	case "server":
 		if server.Port == "" {
 			server.Port = "1080"
 		}
-		runServer()
+		return runServer()
 	case "client":
 		if server.Port == "" {
 			server.Port = "8080"
 		}
-		runClient()
+		return runClient()
 	default:
-		log.Fatalln("unknow mode:", *mode)
+		return errors.New("unknow mode: " + mode)
 	}
 }
 

@@ -22,7 +22,7 @@ jobs:
           go-version: stable
 
       - name: Test Code
-        run: go build -v ./...
+        run: make test
 
   merge:
     if: ${{ github.actor == 'dependabot[bot]' }}

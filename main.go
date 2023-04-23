@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/sunshineplan/service"
 	"github.com/sunshineplan/utils/flags"
@@ -83,19 +82,12 @@ client side:
     	Password for Basic Authentication
 `
 
-var self string
-var server = httpsvr.New()
+var (
+	self string
 
-var svc = service.Service{
-	Name:     "HTTPProxy",
-	Desc:     "HTTP(S) Proxy Server",
-	Exec:     run,
-	TestExec: test,
-	Options: service.Options{
-		Dependencies: []string{"After=network.target"},
-		Others:       []string{"ExecReload=kill -HUP $MAINPID"},
-	},
-}
+	server = httpsvr.New()
+	svc    = service.New()
+)
 
 func init() {
 	var err error
@@ -103,11 +95,19 @@ func init() {
 	if err != nil {
 		log.Fatalln("Failed to get self path:", err)
 	}
+	svc.Name = "HTTPProxy"
+	svc.Desc = "HTTP(S) Proxy Server"
+	svc.Exec = run
+	svc.TestExec = test
+	svc.Options = service.Options{
+		Dependencies: []string{"After=network.target"},
+		Others:       []string{"ExecReload=kill -HUP $MAINPID"},
+	}
 }
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), `Usage of %s:%s%s%s%s`, os.Args[0], commonFlag, serverFlag, clientFlag, service.Usage)
+		fmt.Fprintf(flag.CommandLine.Output(), `Usage of %s:%s%s%s%s`, os.Args[0], commonFlag, serverFlag, clientFlag, svc.Usage())
 	}
 	flag.StringVar(&server.Host, "host", "", "Listening host")
 	flag.StringVar(&server.Port, "port", "", "Listening port")
@@ -131,25 +131,7 @@ func main() {
 		*status = filepath.Join(filepath.Dir(self), "status")
 	}
 
-	if service.IsWindowsService() {
-		svc.Run(false)
-		return
-	}
-
-	var err error
-	switch flag.NArg() {
-	case 0:
-		run()
-	case 1:
-		cmd := flag.Arg(0)
-		var ok bool
-		if ok, err = svc.Command(cmd); !ok {
-			log.Fatalln("Unknown argument:", cmd)
-		}
-	default:
-		log.Fatalln("Unknown arguments:", strings.Join(flag.Args(), " "))
-	}
-	if err != nil {
-		log.Fatalf("Failed to %s: %v", flag.Arg(0), err)
+	if err := svc.ParseAndRun(flag.Args()); err != nil {
+		svc.Fatal(err)
 	}
 }
