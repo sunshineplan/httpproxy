@@ -45,7 +45,7 @@ func initWhitelist() {
 		}
 		parseWhitelist(rows)
 
-		if err := watcherFile(
+		if err := watchFile(
 			*whitelist,
 			func() {
 				rows, _ := txt.ReadFile(*whitelist)

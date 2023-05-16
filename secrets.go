@@ -21,7 +21,7 @@ func initSecrets() {
 		}
 		parseSecrets(rows, true)
 
-		if err := watcherFile(
+		if err := watchFile(
 			*secrets,
 			func() {
 				rows, err := txt.ReadFile(*secrets)
