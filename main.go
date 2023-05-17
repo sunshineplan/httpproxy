@@ -83,18 +83,11 @@ client side:
 `
 
 var (
-	self string
-
 	server = httpsvr.New()
 	svc    = service.New()
 )
 
 func init() {
-	var err error
-	self, err = os.Executable()
-	if err != nil {
-		log.Fatalln("Failed to get self path:", err)
-	}
 	svc.Name = "HTTPProxy"
 	svc.Desc = "HTTP(S) Proxy Server"
 	svc.Exec = run
@@ -106,6 +99,11 @@ func init() {
 }
 
 func main() {
+	self, err := os.Executable()
+	if err != nil {
+		log.Fatalln("Failed to get self path:", err)
+	}
+
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), `Usage of %s:%s%s%s%s`, os.Args[0], commonFlag, serverFlag, clientFlag, svc.Usage())
 	}
@@ -116,17 +114,11 @@ func main() {
 	flags.Parse()
 
 	if *secrets == "" {
-		if info, err := os.Stat(filepath.Join(filepath.Dir(self), "secrets")); err == nil && !info.IsDir() {
-			*secrets = filepath.Join(filepath.Dir(self), "secrets")
-		}
+		*secrets = filepath.Join(filepath.Dir(self), "secrets")
 	}
-
 	if *whitelist == "" {
-		if info, err := os.Stat(filepath.Join(filepath.Dir(self), "whitelist")); err == nil && !info.IsDir() {
-			*whitelist = filepath.Join(filepath.Dir(self), "whitelist")
-		}
+		*whitelist = filepath.Join(filepath.Dir(self), "whitelist")
 	}
-
 	if *status == "" {
 		*status = filepath.Join(filepath.Dir(self), "status")
 	}
