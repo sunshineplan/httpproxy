@@ -18,16 +18,16 @@ var c = cache.New(true)
 var statusMutex sync.Mutex
 var start time.Time
 
-func set(key string, n uint64, d time.Duration) {
+func set(key string, n int64, d time.Duration) {
 	v, ok := c.Get(key)
 	if ok {
-		c.Set(key, v.(uint64)+n, d, nil)
+		c.Set(key, v.(int64)+n, d, nil)
 	} else {
 		c.Set(key, n, d, nil)
 	}
 }
 
-func count(user string, count uint64) {
+func count(user string, count int64) {
 	statusMutex.Lock()
 	defer statusMutex.Unlock()
 
@@ -46,31 +46,31 @@ func (res statusResult) String(length [3]int) string {
 	var b strings.Builder
 	b.WriteString(res.user)
 	b.WriteString(strings.Repeat(" ", length[0]-len(res.user)+3))
-	b.WriteString(res.today)
+	fmt.Fprint(&b, res.today)
 	b.WriteString(strings.Repeat(" ", length[1]-len(res.today)+3))
-	b.WriteString(res.monthly)
+	fmt.Fprint(&b, res.monthly)
 	b.WriteString(strings.Repeat(" ", length[2]-len(res.monthly)+3))
-	b.WriteString(res.total)
+	fmt.Fprint(&b, res.total)
 	return b.String()
 }
 
 func getStatus(user string) (res statusResult) {
-	var total, monthly, today uint64
+	var total, monthly, today unit.ByteSize
 	v, ok := c.Get(user)
 	if ok {
-		total = v.(uint64)
+		total = unit.ByteSize(v.(int64))
 	}
 	v, ok = c.Get(time.Now().Format("2006-01") + user)
 	if ok {
-		monthly = v.(uint64)
+		monthly = unit.ByteSize(v.(int64))
 	}
 	v, ok = c.Get(time.Now().Format("2006-01-02") + user)
 	if ok {
-		today = v.(uint64)
+		today = unit.ByteSize(v.(int64))
 	}
 
 	if total+monthly+today != 0 {
-		res = statusResult{user, unit.FormatBytes(today), unit.FormatBytes(monthly), unit.FormatBytes(total)}
+		res = statusResult{user, today.String(), monthly.String(), total.String()}
 	}
 
 	return
@@ -83,7 +83,7 @@ func writeStatus(w *txt.Writer) {
 	}
 	secretsMutex.Lock()
 	for user := range accounts {
-		if status := getStatus(user); status != emptyStatus {
+		if status := getStatus(user.name); status != emptyStatus {
 			res = append(res, status)
 		}
 	}
@@ -122,8 +122,8 @@ func saveStatus() {
 	w.WriteLine("Last update: " + time.Now().Format("2006-01-02 15:04:05"))
 	w.WriteLine(fmt.Sprintf(
 		"\nThroughput:\nSend: %s   Receive: %s\n",
-		unit.FormatBytes(uint64(server.WriteCount())),
-		unit.FormatBytes(uint64(server.ReadCount())),
+		unit.ByteSize(server.WriteCount()),
+		unit.ByteSize(server.ReadCount()),
 	))
 	writeStatus(w)
 }

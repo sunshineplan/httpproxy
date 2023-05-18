@@ -2,9 +2,19 @@ package main
 
 import (
 	"path/filepath"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"golang.org/x/time/rate"
 )
+
+var (
+	notAllow     = newSometimes(time.Minute)
+	authRequired = newSometimes(time.Minute)
+	authFailed   = newSometimes(time.Minute)
+)
+
+func newSometimes(interval time.Duration) rate.Sometimes { return rate.Sometimes{Interval: interval} }
 
 func watchFile(file string, fnChange, fnRemove func()) error {
 	w, err := fsnotify.NewWatcher()

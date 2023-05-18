@@ -14,7 +14,7 @@ func transfer(dst io.WriteCloser, src io.ReadCloser, user string) {
 	defer src.Close()
 	n, _ := io.Copy(dst, src)
 	if user != "" {
-		count(user, uint64(n))
+		count(user, n)
 	}
 }
 
@@ -60,7 +60,7 @@ func serverHTTP(user string, w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(resp.StatusCode)
 	n, _ := io.Copy(w, resp.Body)
-	count(user, uint64(n))
+	count(user, n)
 }
 
 func parseBasicAuth(auth string) (username, password string, ok bool) {
@@ -85,19 +85,24 @@ func serverHandler(w http.ResponseWriter, r *http.Request) {
 	var pass string
 	var ok bool
 	if len(accounts) == 0 && len(allows) != 0 && !isAllow(r.RemoteAddr) {
-		accessLogger.Printf("%s not allow", r.RemoteAddr)
+		notAllow.Do(func() { accessLogger.Printf("%s not allow", r.RemoteAddr) })
+		http.Error(w, "access not allow", http.StatusForbidden)
 		return
 	} else if len(accounts) != 0 && !isAllow(r.RemoteAddr) {
 		user, pass, ok = parseBasicAuth(r.Header.Get("Proxy-Authorization"))
 		if !ok {
-			accessLogger.Printf("%s Proxy Authentication Required", r.RemoteAddr)
+			authRequired.Do(func() { accessLogger.Printf("%s Proxy Authentication Required", r.RemoteAddr) })
 			w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
 			http.Error(w, "", http.StatusProxyAuthRequired)
 			return
-		} else if !hasAccount(user, pass) {
-			errorLogger.Printf("%s Proxy Authentication Failed", r.RemoteAddr)
+		} else if hasAccount, exceeded, sometimes := checkAccount(user, pass); !hasAccount {
+			authFailed.Do(func() { errorLogger.Printf("%s Proxy Authentication Failed", r.RemoteAddr) })
 			w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
 			http.Error(w, "", http.StatusProxyAuthRequired)
+			return
+		} else if hasAccount && exceeded {
+			sometimes.Do(func() { accessLogger.Printf("%s[%s] Exceeded traffic limit", r.RemoteAddr, user) })
+			http.Error(w, "exceeded traffic limit", http.StatusForbidden)
 			return
 		}
 	}

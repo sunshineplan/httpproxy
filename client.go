@@ -92,7 +92,7 @@ func clientHTTP(user string, w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(resp.StatusCode)
 	n, _ := io.Copy(w, resp.Body)
-	count(user, uint64(n))
+	count(user, n)
 }
 
 func clientHandler(w http.ResponseWriter, r *http.Request) {
