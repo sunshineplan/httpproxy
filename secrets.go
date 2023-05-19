@@ -14,7 +14,7 @@ import (
 var (
 	secretsMutex sync.Mutex
 	accounts     map[account]unit.ByteSize
-	sometimes    map[account]rate.Sometimes
+	sometimes    map[account]*rate.Sometimes
 )
 
 type account struct {
@@ -57,7 +57,7 @@ func initSecrets() {
 
 func parseSecrets(s []string, record bool) {
 	m := make(map[account]unit.ByteSize)
-	st := make(map[account]rate.Sometimes)
+	st := make(map[account]*rate.Sometimes)
 	for _, row := range s {
 		if i := strings.IndexRune(row, '#'); i != -1 {
 			row = row[:i]
@@ -103,14 +103,14 @@ func parseSecrets(s []string, record bool) {
 	sometimes = st
 }
 
-func checkAccount(user, pass string) (hasAccount bool, exceeded bool, st rate.Sometimes) {
+func checkAccount(user, pass string) (hasAccount bool, exceeded bool, st *rate.Sometimes) {
 	secretsMutex.Lock()
 	defer secretsMutex.Unlock()
 
 	if limit, ok := accounts[account{user, pass}]; !ok {
-		return false, false, rate.Sometimes{}
+		return false, false, nil
 	} else if limit == 0 {
-		return true, false, rate.Sometimes{}
+		return true, false, nil
 	} else {
 		statusMutex.Lock()
 		defer statusMutex.Unlock()
@@ -119,5 +119,5 @@ func checkAccount(user, pass string) (hasAccount bool, exceeded bool, st rate.So
 			return true, today.(int64) >= int64(limit), sometimes[account{user, pass}]
 		}
 	}
-	return true, false, rate.Sometimes{}
+	return true, false, nil
 }
