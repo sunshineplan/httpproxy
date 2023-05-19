@@ -35,6 +35,8 @@ func runClient() error {
 
 	initLogger()
 	initProxy()
+	initWhitelist()
+	initSecrets()
 	initStatus()
 
 	return server.Run()

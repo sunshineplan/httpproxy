@@ -30,28 +30,26 @@ func parseAccount(s string) (account, error) {
 }
 
 func initSecrets() {
-	if *secrets != "" {
-		rows, err := txt.ReadFile(*secrets)
-		if err != nil {
-			errorLogger.Println("failed to load secrets file:", err)
-		}
+	if rows, err := txt.ReadFile(*secrets); err != nil {
+		errorLogger.Println("failed to load secrets file:", err)
+	} else {
 		parseSecrets(rows, true)
+	}
 
-		if err := watchFile(
-			*secrets,
-			func() {
-				rows, err := txt.ReadFile(*secrets)
-				if err != nil {
-					errorLogger.Print(err)
-				} else {
-					parseSecrets(rows, false)
-				}
-			},
-			func() { parseSecrets(nil, false) },
-		); err != nil {
-			errorLogger.Print(err)
-			return
-		}
+	if err := watchFile(
+		*secrets,
+		func() {
+			rows, err := txt.ReadFile(*secrets)
+			if err != nil {
+				errorLogger.Print(err)
+			} else {
+				parseSecrets(rows, false)
+			}
+		},
+		func() { parseSecrets(nil, false) },
+	); err != nil {
+		errorLogger.Print(err)
+		return
 	}
 }
 
@@ -101,23 +99,4 @@ func parseSecrets(s []string, record bool) {
 
 	accounts = m
 	sometimes = st
-}
-
-func checkAccount(user, pass string) (hasAccount bool, exceeded bool, st *rate.Sometimes) {
-	secretsMutex.Lock()
-	defer secretsMutex.Unlock()
-
-	if limit, ok := accounts[account{user, pass}]; !ok {
-		return false, false, nil
-	} else if limit == 0 {
-		return true, false, nil
-	} else {
-		statusMutex.Lock()
-		defer statusMutex.Unlock()
-
-		if today, ok := c.Get(time.Now().Format("2006-01-02") + user); ok {
-			return true, today.(int64) >= int64(limit), sometimes[account{user, pass}]
-		}
-	}
-	return true, false, nil
 }

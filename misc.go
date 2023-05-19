@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/http"
 	"path/filepath"
 	"time"
 
@@ -53,4 +54,52 @@ func watchFile(file string, fnChange, fnRemove func()) error {
 	}()
 
 	return nil
+}
+
+func auth(w http.ResponseWriter, r *http.Request) (string, bool) {
+	user := "anonymous"
+	var pass string
+	var ok bool
+	if len(accounts) == 0 && len(allows) != 0 && !isAllow(r.RemoteAddr) {
+		notAllow.Do(func() { accessLogger.Printf("%s not allow", r.RemoteAddr) })
+		http.Error(w, "access not allow", http.StatusForbidden)
+		return "", false
+	} else if len(accounts) != 0 && !isAllow(r.RemoteAddr) {
+		user, pass, ok = parseBasicAuth(r.Header.Get("Proxy-Authorization"))
+		if !ok {
+			authRequired.Do(func() { accessLogger.Printf("%s Proxy Authentication Required", r.RemoteAddr) })
+			w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
+			http.Error(w, "", http.StatusProxyAuthRequired)
+			return "", false
+		} else if hasAccount, exceeded, sometimes := checkAccount(user, pass); !hasAccount {
+			authFailed.Do(func() { errorLogger.Printf("%s Proxy Authentication Failed", r.RemoteAddr) })
+			w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
+			http.Error(w, "", http.StatusProxyAuthRequired)
+			return "", false
+		} else if hasAccount && exceeded {
+			sometimes.Do(func() { accessLogger.Printf("%s[%s] Exceeded traffic limit", r.RemoteAddr, user) })
+			http.Error(w, "exceeded traffic limit", http.StatusForbidden)
+			return "", false
+		}
+	}
+	return user, true
+}
+
+func checkAccount(user, pass string) (hasAccount bool, exceeded bool, st *rate.Sometimes) {
+	secretsMutex.Lock()
+	defer secretsMutex.Unlock()
+
+	if limit, ok := accounts[account{user, pass}]; !ok {
+		return false, false, nil
+	} else if limit == 0 {
+		return true, false, nil
+	} else {
+		statusMutex.Lock()
+		defer statusMutex.Unlock()
+
+		if today, ok := c.Get(time.Now().Format("2006-01-02") + user); ok {
+			return true, today.(int64) >= int64(limit), sometimes[account{user, pass}]
+		}
+	}
+	return true, false, nil
 }

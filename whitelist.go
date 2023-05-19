@@ -38,24 +38,22 @@ func (s allow) isAllow(ip string) bool {
 }
 
 func initWhitelist() {
-	if *whitelist != "" {
-		rows, err := txt.ReadFile(*whitelist)
-		if err != nil {
-			errorLogger.Println("failed to load whitelist file:", err)
-		}
+	if rows, err := txt.ReadFile(*whitelist); err != nil {
+		errorLogger.Println("failed to load whitelist file:", err)
+	} else {
 		parseWhitelist(rows)
+	}
 
-		if err := watchFile(
-			*whitelist,
-			func() {
-				rows, _ := txt.ReadFile(*whitelist)
-				parseWhitelist(rows)
-			},
-			func() { parseWhitelist(nil) },
-		); err != nil {
-			errorLogger.Print(err)
-			return
-		}
+	if err := watchFile(
+		*whitelist,
+		func() {
+			rows, _ := txt.ReadFile(*whitelist)
+			parseWhitelist(rows)
+		},
+		func() { parseWhitelist(nil) },
+	); err != nil {
+		errorLogger.Print(err)
+		return
 	}
 }
 

@@ -96,10 +96,16 @@ func clientHTTP(user string, w http.ResponseWriter, r *http.Request) {
 }
 
 func clientHandler(w http.ResponseWriter, r *http.Request) {
+	user, ok := auth(w, r)
+	if !ok {
+		return
+	}
 	if *username != "" && *password != "" {
 		r.Header.Set("Proxy-Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(*username+":"+*password)))
+	} else {
+		r.Header.Del("Proxy-Authorization")
 	}
-	accessLogger.Printf("%s %s %s", r.RemoteAddr, r.Method, r.URL)
+	accessLogger.Printf("%s[%s] %s %s", r.RemoteAddr, user, r.Method, r.URL)
 	if r.Method == http.MethodConnect {
 		clientTunneling(r.RemoteAddr, w, r)
 	} else {
