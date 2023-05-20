@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"sort"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sunshineplan/utils/cache"
@@ -15,69 +16,65 @@ import (
 )
 
 var c = cache.New(true)
-var statusMutex sync.Mutex
 var start time.Time
 
 func set(key string, n int64, d time.Duration) {
 	v, ok := c.Get(key)
 	if ok {
-		c.Set(key, v.(int64)+n, d, nil)
+		c.Set(key, v.(*atomic.Int64).Add(n), d, nil)
 	} else {
-		c.Set(key, n, d, nil)
+		v := new(atomic.Int64)
+		v.Store(n)
+		c.Set(key, v, d, nil)
 	}
 }
 
 func count(user string, count int64) {
-	statusMutex.Lock()
-	defer statusMutex.Unlock()
-
 	set(user, count, 0)
 	set(time.Now().Format("2006-01")+user, count, 31*24*time.Hour)
 	set(time.Now().Format("2006-01-02")+user, count, 24*time.Hour)
 }
 
 type statusResult struct {
-	user, today, monthly, total string
+	user                  string
+	today, monthly, total unit.ByteSize
 }
 
 var emptyStatus statusResult
 
 func (res statusResult) String(length [3]int) string {
-	var b strings.Builder
-	b.WriteString(res.user)
-	b.WriteString(strings.Repeat(" ", length[0]-len(res.user)+3))
-	fmt.Fprint(&b, res.today)
-	b.WriteString(strings.Repeat(" ", length[1]-len(res.today)+3))
-	fmt.Fprint(&b, res.monthly)
-	b.WriteString(strings.Repeat(" ", length[2]-len(res.monthly)+3))
-	fmt.Fprint(&b, res.total)
-	return b.String()
+	return fmt.Sprint(
+		res.user, strings.Repeat(" ", length[0]-len(res.user)+3),
+		res.today, strings.Repeat(" ", length[1]-len(res.today.String())+3),
+		res.monthly, strings.Repeat(" ", length[2]-len(res.monthly.String())+3),
+		res.total,
+	)
 }
 
 func getStatus(user string) (res statusResult) {
 	var total, monthly, today unit.ByteSize
 	v, ok := c.Get(user)
 	if ok {
-		total = unit.ByteSize(v.(int64))
+		total = unit.ByteSize(v.(*atomic.Int64).Load())
 	}
 	v, ok = c.Get(time.Now().Format("2006-01") + user)
 	if ok {
-		monthly = unit.ByteSize(v.(int64))
+		monthly = unit.ByteSize(v.(*atomic.Int64).Load())
 	}
 	v, ok = c.Get(time.Now().Format("2006-01-02") + user)
 	if ok {
-		today = unit.ByteSize(v.(int64))
+		today = unit.ByteSize(v.(*atomic.Int64).Load())
 	}
 
 	if total+monthly+today != 0 {
-		res = statusResult{user, today.String(), monthly.String(), total.String()}
+		res = statusResult{user, today, monthly, total}
 	}
 
 	return
 }
 
 func writeStatus(w *txt.Writer) {
-	res := []statusResult{{"user", "today", "monthly", "total"}}
+	var res []statusResult
 	if status := getStatus("anonymous"); status != emptyStatus {
 		res = append(res, status)
 	}
@@ -89,19 +86,36 @@ func writeStatus(w *txt.Writer) {
 	}
 	secretsMutex.Unlock()
 
-	var length [3]int
+	sort.Slice(res, func(i, j int) bool {
+		if res[i].today == res[j].today {
+			if res[i].monthly == res[j].monthly {
+				return res[i].today > res[j].today
+			}
+			return res[i].monthly > res[j].monthly
+		}
+		return res[i].today > res[j].today
+	})
+
+	length := [3]int{4, 5, 7}
 	for _, i := range res {
 		if l := len(i.user); l > length[0] {
 			length[0] = l
 		}
-		if l := len(i.today); l > length[1] {
+		if l := len(i.today.String()); l > length[1] {
 			length[1] = l
 		}
-		if l := len(i.monthly); l > length[2] {
+		if l := len(i.monthly.String()); l > length[2] {
 			length[2] = l
 		}
 	}
 
+	fmt.Fprint(
+		w,
+		"user", strings.Repeat(" ", length[0]-1),
+		"today", strings.Repeat(" ", length[1]-2),
+		"monthly", strings.Repeat(" ", length[2]-4),
+		"total\n",
+	)
 	for _, i := range res {
 		w.WriteLine(i.String(length))
 	}

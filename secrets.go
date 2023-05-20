@@ -56,6 +56,7 @@ func initSecrets() {
 func parseSecrets(s []string, record bool) {
 	m := make(map[account]unit.ByteSize)
 	st := make(map[account]*rate.Sometimes)
+	list := make(map[string]struct{})
 	for _, row := range s {
 		if i := strings.IndexRune(row, '#'); i != -1 {
 			row = row[:i]
@@ -72,7 +73,12 @@ func parseSecrets(s []string, record bool) {
 				}
 				continue
 			}
-			m[account] = 0
+			if _, ok := list[account.name]; !ok {
+				m[account] = 0
+				list[account.name] = struct{}{}
+			} else {
+				errorLogger.Println("duplicate account name:", account.name)
+			}
 		case 2:
 			account, err := parseAccount(fields[0])
 			if err != nil {
@@ -88,8 +94,13 @@ func parseSecrets(s []string, record bool) {
 				}
 				continue
 			}
-			m[account] = limit
-			st[account] = newSometimes(time.Minute)
+			if _, ok := list[account.name]; !ok {
+				m[account] = limit
+				st[account] = newSometimes(time.Minute)
+				list[account.name] = struct{}{}
+			} else {
+				errorLogger.Println("duplicate account name:", account.name)
+			}
 		}
 	}
 	accessLogger.Printf("loaded %d accounts", len(m))

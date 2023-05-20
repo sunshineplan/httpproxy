@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -93,13 +94,8 @@ func checkAccount(user, pass string) (hasAccount bool, exceeded bool, st *rate.S
 		return false, false, nil
 	} else if limit == 0 {
 		return true, false, nil
-	} else {
-		statusMutex.Lock()
-		defer statusMutex.Unlock()
-
-		if today, ok := c.Get(time.Now().Format("2006-01-02") + user); ok {
-			return true, today.(int64) >= int64(limit), sometimes[account{user, pass}]
-		}
+	} else if today, ok := c.Get(time.Now().Format("2006-01-02") + user); ok {
+		return true, today.(*atomic.Int64).Load() >= int64(limit), sometimes[account{user, pass}]
 	}
 	return true, false, nil
 }
