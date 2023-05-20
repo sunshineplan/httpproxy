@@ -19,9 +19,8 @@ var c = cache.New(true)
 var start time.Time
 
 func set(key string, n int64, d time.Duration) {
-	v, ok := c.Get(key)
-	if ok {
-		c.Set(key, v.(*atomic.Int64).Add(n), d, nil)
+	if v, ok := c.Get(key); ok {
+		v.(*atomic.Int64).Add(n)
 	} else {
 		v := new(atomic.Int64)
 		v.Store(n)
