@@ -24,6 +24,11 @@ func runServer() error {
 	initDatabase()
 	initStatus()
 
+	defer func() {
+		saveStatus()
+		saveDatabase()
+	}()
+
 	if *https {
 		return server.RunTLS(*cert, *privkey)
 	} else {
@@ -40,6 +45,11 @@ func runClient() error {
 	initSecrets()
 	initDatabase()
 	initStatus()
+
+	defer func() {
+		saveStatus()
+		saveDatabase()
+	}()
 
 	return server.Run()
 }

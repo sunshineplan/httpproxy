@@ -91,12 +91,6 @@ func init() {
 	svc.Name = "HTTPProxy"
 	svc.Desc = "HTTP(S) Proxy Server"
 	svc.Exec = run
-	svc.Kill = func() error {
-		saveStatus()
-		saveDatabase()
-		accessLogger.Print("HTTPProxy Closed")
-		return nil
-	}
 	svc.TestExec = test
 	svc.Options = service.Options{
 		Dependencies: []string{"After=network.target"},

@@ -130,9 +130,9 @@ func initDatabase() {
 	}
 	if f, err := os.Open(database); err == nil {
 		defer f.Close()
-		if r, err := gzip.NewReader(f); err == nil {
-			defer r.Close()
-			rows, err := txt.ReadAll(f)
+		if zr, err := gzip.NewReader(f); err == nil {
+			defer zr.Close()
+			rows, err := txt.ReadAll(zr)
 			if err != nil {
 				errorLogger.Print(err)
 			} else {
@@ -144,5 +144,5 @@ func initDatabase() {
 	} else {
 		errorLogger.Print(err)
 	}
-	scheduler.NewScheduler().At(scheduler.Every(time.Minute)).Do(func(_ time.Time) { saveDatabase() })
+	scheduler.NewScheduler().At(scheduler.AtSecond(0)).Do(func(_ time.Time) { saveDatabase() })
 }
