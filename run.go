@@ -21,6 +21,7 @@ func runServer() error {
 	initLogger()
 	initWhitelist()
 	initSecrets()
+	initDatabase()
 	initStatus()
 
 	if *https {
@@ -37,6 +38,7 @@ func runClient() error {
 	initProxy()
 	initWhitelist()
 	initSecrets()
+	initDatabase()
 	initStatus()
 
 	return server.Run()

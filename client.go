@@ -14,13 +14,16 @@ import (
 var p *httpproxy.Proxy
 
 func initProxy() {
+	if *debug {
+		accessLogger.Println("proxy:", *proxy)
+	}
 	proxyURL, err := url.Parse(*proxy)
 	if err != nil {
 		log.Fatalln("bad server address:", *proxy)
 	}
 	p = httpproxy.New(proxyURL, nil)
 	if *debug {
-		log.Print("Proxy ready")
+		accessLogger.Print("Proxy ready")
 	}
 }
 

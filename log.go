@@ -11,6 +11,9 @@ var errorLogger = log.New(os.Stderr, "", log.LstdFlags)
 
 func initLogger() {
 	if *accesslog != "" {
+		if *debug {
+			accessLogger.Println("accesslog:", *accesslog)
+		}
 		f, err := os.OpenFile(*accesslog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 		if err != nil {
 			log.Println("failed to open access log file:", err)
@@ -25,6 +28,9 @@ func initLogger() {
 	}
 
 	if *errorlog != "" {
+		if *debug {
+			accessLogger.Println("errorlog:", *errorlog)
+		}
 		f, err := os.OpenFile(*errorlog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 		if err != nil {
 			log.Println("failed to open access log file:", err)

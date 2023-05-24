@@ -12,11 +12,15 @@ import (
 	"github.com/sunshineplan/utils/httpsvr"
 )
 
-// common
+// common flags
 var (
 	mode      = flag.String("mode", "server", "server or client mode")
 	accesslog = flag.String("access-log", "", "Path to access log file")
 	errorlog  = flag.String("error-log", "", "Path to error log file")
+	secrets   = flag.String("secrets", "", "Path to secrets file for Basic Authentication")
+	whitelist = flag.String("whitelist", "", "Path to whitelist file")
+	status    = flag.String("status", "", "Path to status file")
+	keep      = flag.Int("keep", 100, "Count of status files")
 	debug     = flag.Bool("debug", false, "debug")
 )
 
@@ -32,19 +36,23 @@ common:
     	Path to access log file
   --error-log <file>
     	Path to error log file
+  --secrets <file>
+    	Path to secrets file for Basic Authentication
+  --whitelist <file>
+    	Path to whitelist file
+  --status <file>
+    	Path to status file
+  --keep number
+    	Count of status files (default: 100)
   --update <url>
     	Update URL
 `
 
-// server
+// server flags
 var (
-	https     = flag.Bool("https", false, "Serve as HTTPS proxy server")
-	cert      = flag.String("cert", "", "Path to certificate file")
-	privkey   = flag.String("privkey", "", "Path to private key file")
-	secrets   = flag.String("secrets", "", "Path to secrets file for Basic Authentication")
-	whitelist = flag.String("whitelist", "", "Path to whitelist file")
-	status    = flag.String("status", "", "Path to status file")
-	keep      = flag.Int("keep", 100, "Count of status files")
+	https   = flag.Bool("https", false, "Serve as HTTPS proxy server")
+	cert    = flag.String("cert", "", "Path to certificate file")
+	privkey = flag.String("privkey", "", "Path to private key file")
 )
 
 const serverFlag = `
@@ -55,17 +63,9 @@ server side:
     	Path to certificate file
   --privkey <file>
     	Path to private key file
-  --secrets <file>
-    	Path to secrets file for Basic Authentication
-  --whitelist <file>
-    	Path to whitelist file
-  --status <file>
-    	Path to status file
-  --keep number
-    	Count of status files (default: 100)
 `
 
-// client
+// client flags
 var (
 	proxy    = flag.String("proxy", "", "Proxy address")
 	username = flag.String("username", "", "Username")
@@ -91,6 +91,12 @@ func init() {
 	svc.Name = "HTTPProxy"
 	svc.Desc = "HTTP(S) Proxy Server"
 	svc.Exec = run
+	svc.Kill = func() error {
+		saveStatus()
+		saveDatabase()
+		accessLogger.Print("HTTPProxy Closed")
+		return nil
+	}
 	svc.TestExec = test
 	svc.Options = service.Options{
 		Dependencies: []string{"After=network.target"},
@@ -103,6 +109,7 @@ func main() {
 	if err != nil {
 		log.Fatalln("Failed to get self path:", err)
 	}
+	database = filepath.Join(filepath.Dir(self), "database")
 
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), `Usage of %s:%s%s%s%s`, os.Args[0], commonFlag, serverFlag, clientFlag, svc.Usage())

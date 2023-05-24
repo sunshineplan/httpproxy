@@ -3,45 +3,25 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"sort"
 	"strings"
-	"sync/atomic"
 	"time"
 
-	"github.com/sunshineplan/utils/cache"
-	"github.com/sunshineplan/utils/txt"
+	"github.com/sunshineplan/utils/scheduler"
 	"github.com/sunshineplan/utils/unit"
 )
 
-var c = cache.New(true)
-var start time.Time
-
-func set(key string, n int64, d time.Duration) {
-	if v, ok := c.Get(key); ok {
-		v.(*atomic.Int64).Add(n)
-	} else {
-		v := new(atomic.Int64)
-		v.Store(n)
-		c.Set(key, v, d, nil)
-	}
-}
-
-func count(user string, count int64) {
-	set(user, count, 0)
-	set(time.Now().Format("2006-01")+user, count, 31*24*time.Hour)
-	set(time.Now().Format("2006-01-02")+user, count, 24*time.Hour)
-}
-
-type statusResult struct {
+type usage struct {
 	user                  string
 	today, monthly, total unit.ByteSize
 }
 
-var emptyStatus statusResult
+var emptyUsage usage
 
-func (res statusResult) String(length [3]int) string {
+func (res usage) String(length [3]int) string {
 	return fmt.Sprint(
 		res.user, strings.Repeat(" ", length[0]-len(res.user)+3),
 		res.today, strings.Repeat(" ", length[1]-len(res.today.String())+3),
@@ -50,37 +30,26 @@ func (res statusResult) String(length [3]int) string {
 	)
 }
 
-func getStatus(user string) (res statusResult) {
-	var total, monthly, today unit.ByteSize
-	v, ok := c.Get(user)
-	if ok {
-		total = unit.ByteSize(v.(*atomic.Int64).Load())
+func getUsage(user string) (res usage) {
+	if v, ok := db.Load(user); ok {
+		v := v.(*record)
+		res.user = user
+		res.today = unit.ByteSize(v.today.Load())
+		res.monthly = unit.ByteSize(v.monthly.Load())
+		res.total = unit.ByteSize(v.total.Load())
 	}
-	v, ok = c.Get(time.Now().Format("2006-01") + user)
-	if ok {
-		monthly = unit.ByteSize(v.(*atomic.Int64).Load())
-	}
-	v, ok = c.Get(time.Now().Format("2006-01-02") + user)
-	if ok {
-		today = unit.ByteSize(v.(*atomic.Int64).Load())
-	}
-
-	if total+monthly+today != 0 {
-		res = statusResult{user, today, monthly, total}
-	}
-
 	return
 }
 
-func writeStatus(w *txt.Writer) {
-	var res []statusResult
-	if status := getStatus("anonymous"); status != emptyStatus {
-		res = append(res, status)
+func writeUsages(w io.Writer) {
+	var res []usage
+	if usage := getUsage("anonymous"); usage != emptyUsage {
+		res = append(res, usage)
 	}
 	secretsMutex.Lock()
 	for user := range accounts {
-		if status := getStatus(user.name); status != emptyStatus {
-			res = append(res, status)
+		if usage := getUsage(user.name); usage != emptyUsage {
+			res = append(res, usage)
 		}
 	}
 	secretsMutex.Unlock()
@@ -116,9 +85,11 @@ func writeStatus(w *txt.Writer) {
 		"total\n",
 	)
 	for _, i := range res {
-		w.WriteLine(i.String(length))
+		fmt.Fprintln(w, i.String(length))
 	}
 }
+
+var start time.Time
 
 func saveStatus() {
 	f, err := os.Create(*status)
@@ -128,20 +99,19 @@ func saveStatus() {
 	}
 	defer f.Close()
 
-	w := txt.NewWriter(f)
-	defer w.Flush()
-
-	w.WriteLine("Start time: " + start.Format("2006-01-02 15:04:05"))
-	w.WriteLine("Last update: " + time.Now().Format("2006-01-02 15:04:05"))
-	w.WriteLine(fmt.Sprintf(
-		"\nThroughput:\nSend: %s   Receive: %s\n",
-		unit.ByteSize(server.WriteCount()),
-		unit.ByteSize(server.ReadCount()),
-	))
-	writeStatus(w)
+	fmt.Fprintln(f, "Start Time:", start.Format("2006-01-02 15:04:05"))
+	fmt.Fprintln(f, "Last Update:", time.Now().Format("2006-01-02 15:04:05"))
+	fmt.Fprintln(f)
+	fmt.Fprintln(f, "Throughput:")
+	fmt.Fprintf(f, "Send: %s   Receive: %s\n", unit.ByteSize(server.WriteCount()), unit.ByteSize(server.ReadCount()))
+	fmt.Fprintln(f)
+	writeUsages(f)
 }
 
 func initStatus() {
+	if *debug {
+		accessLogger.Println("status:", *status)
+	}
 	if _, err := os.Stat(*status); err == nil {
 		if err := keepStatus(0); err != nil {
 			errorLogger.Print(err)
@@ -153,14 +123,7 @@ func initStatus() {
 	}
 
 	start = time.Now()
-	saveStatus()
-
-	ticker := time.NewTicker(time.Minute)
-	go func() {
-		for range ticker.C {
-			saveStatus()
-		}
-	}()
+	scheduler.NewScheduler().At(scheduler.Every(time.Minute)).Do(func(_ time.Time) { saveStatus() })
 }
 
 func keepStatus(n int) (err error) {
