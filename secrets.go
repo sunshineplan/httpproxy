@@ -7,13 +7,12 @@ import (
 	"time"
 
 	"github.com/sunshineplan/utils/txt"
-	"github.com/sunshineplan/utils/unit"
 	"golang.org/x/time/rate"
 )
 
 var (
 	secretsMutex sync.Mutex
-	accounts     map[account]unit.ByteSize
+	accounts     map[account]limit
 	sometimes    map[account]*rate.Sometimes
 )
 
@@ -57,7 +56,7 @@ func initSecrets() {
 }
 
 func parseSecrets(s []string, record bool) {
-	m := make(map[account]unit.ByteSize)
+	m := make(map[account]limit)
 	st := make(map[account]*rate.Sometimes)
 	list := make(map[string]struct{})
 	for _, row := range s {
@@ -77,7 +76,7 @@ func parseSecrets(s []string, record bool) {
 				continue
 			}
 			if _, ok := list[account.name]; !ok {
-				m[account] = 0
+				m[account] = emptyLimit
 				list[account.name] = struct{}{}
 			} else {
 				errorLogger.Println("duplicate account name:", account.name)
@@ -90,7 +89,7 @@ func parseSecrets(s []string, record bool) {
 				}
 				continue
 			}
-			limit, err := unit.ParseByteSize(fields[1])
+			limit, err := parseLimit(fields[1])
 			if err != nil {
 				if record {
 					errorLogger.Println("invalid limit:", fields[1])

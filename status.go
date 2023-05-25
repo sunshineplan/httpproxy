@@ -123,7 +123,8 @@ func initStatus() {
 	}
 
 	start = time.Now()
-	scheduler.NewScheduler().At(scheduler.Every(time.Minute)).Do(func(_ time.Time) { saveStatus() })
+	saveStatus()
+	scheduler.NewScheduler().At(scheduler.AtSecond(0)).Do(func(_ time.Time) { saveStatus() })
 }
 
 func keepStatus(n int) (err error) {

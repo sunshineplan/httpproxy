@@ -116,7 +116,7 @@ func saveDatabase() {
 	for user := range accounts {
 		if v, ok := db.Load(user.name); ok {
 			record := v.(*record)
-			fmt.Fprintf(zw, "%s:%d:%d:%d\n", user.name, record.today.Load(), record.monthly.Load(), record.today.Load())
+			fmt.Fprintf(zw, "%s:%d:%d:%d\n", user.name, record.today.Load(), record.monthly.Load(), record.total.Load())
 		}
 	}
 	zw.Close()
@@ -144,5 +144,5 @@ func initDatabase() {
 	} else {
 		errorLogger.Print(err)
 	}
-	scheduler.NewScheduler().At(scheduler.AtSecond(0)).Do(func(_ time.Time) { saveDatabase() })
+	scheduler.NewScheduler().At(scheduler.AtMinute(0)).Do(func(_ time.Time) { saveDatabase() })
 }

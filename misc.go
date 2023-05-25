@@ -91,10 +91,10 @@ func checkAccount(user, pass string) (hasAccount bool, exceeded bool, st *rate.S
 
 	if limit, ok := accounts[account{user, pass}]; !ok {
 		return false, false, nil
-	} else if limit == 0 {
+	} else if limit == emptyLimit {
 		return true, false, nil
 	} else if v, ok := db.Load(user); ok {
-		return true, v.(*record).today.Load() >= int64(limit), sometimes[account{user, pass}]
+		return true, limit.isExceeded(v.(*record)), sometimes[account{user, pass}]
 	}
 	return true, false, nil
 }
