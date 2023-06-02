@@ -3,13 +3,14 @@ package main
 import (
 	"compress/gzip"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
+	"github.com/sunshineplan/utils/counter"
 	"github.com/sunshineplan/utils/scheduler"
 	"github.com/sunshineplan/utils/txt"
 )
@@ -37,29 +38,30 @@ func init() {
 }
 
 type record struct {
-	today, monthly, total atomic.Int64
+	today, monthly, total counter.Counter
 }
 
-func (r *record) add(n int64) {
-	r.today.Add(n)
-	r.monthly.Add(n)
-	r.total.Add(n)
+func (r *record) writer(w io.Writer) io.Writer {
+	return r.today.AddWriter(r.monthly.AddWriter(r.total.AddWriter(w)))
 }
 
-func store(user string, today, monthly, total int64) {
+func store(user string, today, monthly, total int64) *record {
 	v := new(record)
-	v.today.Store(today)
-	v.monthly.Store(monthly)
-	v.total.Store(total)
+	v.today.Add(today)
+	v.monthly.Add(monthly)
+	v.total.Add(total)
 	db.Store(user, v)
+	return v
 }
 
-func count(user string, n int64) {
-	if v, ok := db.Load(user); ok {
-		v.(*record).add(n)
-	} else {
-		store(user, n, n, n)
+func count(user string, w io.Writer) io.Writer {
+	if user == "" {
+		return w
 	}
+	if v, ok := db.Load(user); ok {
+		return v.(*record).writer(w)
+	}
+	return store(user, 0, 0, 0).writer(w)
 }
 
 func parseDatabase(rows []string) {

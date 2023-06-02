@@ -12,10 +12,7 @@ import (
 func transfer(dst io.WriteCloser, src io.ReadCloser, user string) {
 	defer dst.Close()
 	defer src.Close()
-	n, _ := io.Copy(dst, src)
-	if user != "" {
-		count(user, n)
-	}
+	io.Copy(count(user, dst), src)
 }
 
 func serverTunneling(user string, w http.ResponseWriter, r *http.Request) {
@@ -59,8 +56,7 @@ func serverHTTP(user string, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(resp.StatusCode)
-	n, _ := io.Copy(w, resp.Body)
-	count(user, n)
+	io.Copy(count(user, w), resp.Body)
 }
 
 func parseBasicAuth(auth string) (username, password string, ok bool) {
