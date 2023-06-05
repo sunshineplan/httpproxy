@@ -4,6 +4,7 @@ go 1.20
 
 require (
 	github.com/fsnotify/fsnotify v1.6.0
+	github.com/sunshineplan/limiter v1.0.0
 	github.com/sunshineplan/service v1.0.13
 	github.com/sunshineplan/utils v0.1.43
 	github.com/sunshineplan/utils/httpproxy v1.0.6

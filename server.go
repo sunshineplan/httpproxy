@@ -7,15 +7,21 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/sunshineplan/limiter"
 )
 
-func transfer(dst io.WriteCloser, src io.ReadCloser, user string) {
+func transfer(dst io.WriteCloser, src io.ReadCloser, user string, lim *limiter.Limiter) {
 	defer dst.Close()
 	defer src.Close()
-	io.Copy(count(user, dst), src)
+	if lim == nil {
+		io.Copy(count(user, dst), src)
+	} else {
+		io.Copy(count(user, lim.Writer(dst)), src)
+	}
 }
 
-func serverTunneling(user string, w http.ResponseWriter, r *http.Request) {
+func serverTunneling(user string, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request) {
 	dest_conn, err := net.DialTimeout("tcp", r.Host, 10*time.Second)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -37,11 +43,11 @@ func serverTunneling(user string, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go transfer(dest_conn, client_conn, "")
-	go transfer(client_conn, dest_conn, user)
+	go transfer(dest_conn, client_conn, "", nil)
+	go transfer(client_conn, dest_conn, user, lim)
 }
 
-func serverHTTP(user string, w http.ResponseWriter, r *http.Request) {
+func serverHTTP(user string, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request) {
 	resp, err := http.DefaultTransport.RoundTrip(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -56,7 +62,7 @@ func serverHTTP(user string, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(count(user, w), resp.Body)
+	io.Copy(count(user, lim.Writer(w)), resp.Body)
 }
 
 func parseBasicAuth(auth string) (username, password string, ok bool) {
@@ -77,7 +83,7 @@ func parseBasicAuth(auth string) (username, password string, ok bool) {
 }
 
 func serverHandler(w http.ResponseWriter, r *http.Request) {
-	user, ok := auth(w, r)
+	user, lim, ok := auth(w, r)
 	if !ok {
 		return
 	}
@@ -85,8 +91,8 @@ func serverHandler(w http.ResponseWriter, r *http.Request) {
 
 	accessLogger.Printf("%s[%s] %s %s", r.RemoteAddr, user, r.Method, r.URL)
 	if r.Method == http.MethodConnect {
-		serverTunneling(user, w, r)
+		serverTunneling(user, lim, w, r)
 	} else {
-		serverHTTP(user, w, r)
+		serverHTTP(user, lim, w, r)
 	}
 }

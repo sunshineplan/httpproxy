@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/sunshineplan/limiter"
 	"github.com/sunshineplan/utils/httpproxy"
 )
 
@@ -27,7 +28,7 @@ func initProxy() {
 	}
 }
 
-func clientTunneling(user string, w http.ResponseWriter, r *http.Request) {
+func clientTunneling(user string, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request) {
 	dest_conn, resp, err := p.DialWithHeader(r.Host, r.Header)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -52,11 +53,11 @@ func clientTunneling(user string, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go transfer(dest_conn, client_conn, "")
-	go transfer(client_conn, dest_conn, user)
+	go transfer(dest_conn, client_conn, "", nil)
+	go transfer(client_conn, dest_conn, user, lim)
 }
 
-func clientHTTP(user string, w http.ResponseWriter, r *http.Request) {
+func clientHTTP(user string, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request) {
 	port := r.URL.Port()
 	if port == "" {
 		port = "80"
@@ -94,11 +95,11 @@ func clientHTTP(user string, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(count(user, w), resp.Body)
+	io.Copy(count(user, lim.Writer(w)), resp.Body)
 }
 
 func clientHandler(w http.ResponseWriter, r *http.Request) {
-	user, ok := auth(w, r)
+	user, lim, ok := auth(w, r)
 	if !ok {
 		return
 	}
@@ -109,8 +110,8 @@ func clientHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	accessLogger.Printf("%s[%s] %s %s", r.RemoteAddr, user, r.Method, r.URL)
 	if r.Method == http.MethodConnect {
-		clientTunneling(r.RemoteAddr, w, r)
+		clientTunneling(user, lim, w, r)
 	} else {
-		clientHTTP(r.RemoteAddr, w, r)
+		clientHTTP(user, lim, w, r)
 	}
 }

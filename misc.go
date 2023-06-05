@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/sunshineplan/limiter"
 	"golang.org/x/time/rate"
 )
 
@@ -56,45 +57,48 @@ func watchFile(file string, fnChange, fnRemove func()) error {
 	return nil
 }
 
-func auth(w http.ResponseWriter, r *http.Request) (string, bool) {
+func auth(w http.ResponseWriter, r *http.Request) (string, *limiter.Limiter, bool) {
 	user := "anonymous"
 	var pass string
 	var ok bool
 	if len(accounts) == 0 && len(allows) != 0 && !isAllow(r.RemoteAddr) {
 		notAllow.Do(func() { accessLogger.Printf("%s not allow", r.RemoteAddr) })
 		http.Error(w, "access not allow", http.StatusForbidden)
-		return "", false
+		return "", nil, false
 	} else if len(accounts) != 0 && !isAllow(r.RemoteAddr) {
 		user, pass, ok = parseBasicAuth(r.Header.Get("Proxy-Authorization"))
 		if !ok {
 			authRequired.Do(func() { accessLogger.Printf("%s Proxy Authentication Required", r.RemoteAddr) })
 			w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
 			http.Error(w, "", http.StatusProxyAuthRequired)
-			return "", false
-		} else if hasAccount, exceeded, sometimes := checkAccount(user, pass); !hasAccount {
+			return "", nil, false
+		} else if hasAccount, exceeded, lim, sometimes := checkAccount(user, pass); !hasAccount {
 			authFailed.Do(func() { errorLogger.Printf("%s Proxy Authentication Failed", r.RemoteAddr) })
 			w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
 			http.Error(w, "", http.StatusProxyAuthRequired)
-			return "", false
+			return "", nil, false
 		} else if hasAccount && exceeded {
 			sometimes.Do(func() { accessLogger.Printf("%s[%s] Exceeded traffic limit", r.RemoteAddr, user) })
 			http.Error(w, "exceeded traffic limit", http.StatusForbidden)
-			return "", false
+			return "", nil, false
+		} else {
+			return user, lim, true
 		}
 	}
-	return user, true
+	return user, limiter.New(limiter.Inf), true
 }
 
-func checkAccount(user, pass string) (hasAccount bool, exceeded bool, st *rate.Sometimes) {
+func checkAccount(user, pass string) (hasAccount bool, exceeded bool, lim *limiter.Limiter, st *rate.Sometimes) {
 	secretsMutex.Lock()
 	defer secretsMutex.Unlock()
 
 	if limit, ok := accounts[account{user, pass}]; !ok {
-		return false, false, nil
-	} else if limit == emptyLimit {
-		return true, false, nil
+		return false, false, nil, nil
+	} else if limit.daily == 0 && limit.monthly == 0 {
+		return true, false, limit.speed, nil
 	} else if v, ok := db.Load(user); ok {
-		return true, limit.isExceeded(v.(*record)), sometimes[account{user, pass}]
+		return true, limit.isExceeded(v.(*record)), limit.speed, sometimes[account{user, pass}]
+	} else {
+		return true, false, limit.speed, sometimes[account{user, pass}]
 	}
-	return true, false, nil
 }

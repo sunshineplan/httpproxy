@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunshineplan/limiter"
 	"github.com/sunshineplan/utils/txt"
 	"golang.org/x/time/rate"
 )
@@ -35,7 +36,7 @@ func initSecrets() {
 	if rows, err := txt.ReadFile(*secrets); err != nil {
 		errorLogger.Println("failed to load secrets file:", err)
 	} else {
-		parseSecrets(rows, true)
+		parseSecrets(rows)
 	}
 
 	if err := watchFile(
@@ -45,17 +46,17 @@ func initSecrets() {
 			if err != nil {
 				errorLogger.Print(err)
 			} else {
-				parseSecrets(rows, false)
+				parseSecrets(rows)
 			}
 		},
-		func() { parseSecrets(nil, false) },
+		func() { parseSecrets(nil) },
 	); err != nil {
 		errorLogger.Print(err)
 		return
 	}
 }
 
-func parseSecrets(s []string, record bool) {
+func parseSecrets(s []string) {
 	m := make(map[account]limit)
 	st := make(map[account]*rate.Sometimes)
 	list := make(map[string]struct{})
@@ -70,13 +71,11 @@ func parseSecrets(s []string, record bool) {
 		case 1:
 			account, err := parseAccount(fields[0])
 			if err != nil {
-				if record {
-					errorLogger.Println("invalid secret:", fields[0])
-				}
+				errorLogger.Println("invalid secret:", fields[0])
 				continue
 			}
 			if _, ok := list[account.name]; !ok {
-				m[account] = emptyLimit
+				m[account] = limit{speed: limiter.New(limiter.Inf)}
 				list[account.name] = struct{}{}
 			} else {
 				errorLogger.Println("duplicate account name:", account.name)
@@ -84,16 +83,12 @@ func parseSecrets(s []string, record bool) {
 		case 2:
 			account, err := parseAccount(fields[0])
 			if err != nil {
-				if record {
-					errorLogger.Println("invalid secret:", fields[0])
-				}
+				errorLogger.Println("invalid secret:", fields[0])
 				continue
 			}
 			limit, err := parseLimit(fields[1])
 			if err != nil {
-				if record {
-					errorLogger.Println("invalid limit:", fields[1])
-				}
+				errorLogger.Println("invalid limit:", fields[1])
 				continue
 			}
 			if _, ok := list[account.name]; !ok {
