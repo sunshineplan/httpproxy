@@ -4,8 +4,8 @@ github.com/sunshineplan/limiter v1.0.0 h1:wx3q5eS5J+ggXlAxzg9k6UbDyJYrysNmHyxt5c
 github.com/sunshineplan/limiter v1.0.0/go.mod h1:+Pjd5Pu7i5YclrnFz+MBFxGB9+MZ2cytQeV+S9kXOxY=
 github.com/sunshineplan/service v1.0.13 h1:MzfLcr9+EyEsh2hTfBrjNHakGLga27ru49BKd12uz/o=
 github.com/sunshineplan/service v1.0.13/go.mod h1:luZzA2SGoyNXBr69FeaV+3wCOgFyy/9w9CQJerYElOs=
-github.com/sunshineplan/utils v0.1.46 h1:m43TSqYY0K+n5rY93+7Hr1UCWvtWQYve31nB7G5Us9g=
-github.com/sunshineplan/utils v0.1.46/go.mod h1:7zhDUGgKo2FMFzs7j6IL7B/lh3BRuE7rb7R7IgGOAfc=
+github.com/sunshineplan/utils v0.1.51 h1:d9bgvMwUJFw9s0HTMq7cD8zjKiHJaBdJ/yR5HYvBBOA=
+github.com/sunshineplan/utils v0.1.51/go.mod h1:7zhDUGgKo2FMFzs7j6IL7B/lh3BRuE7rb7R7IgGOAfc=
 github.com/sunshineplan/utils/httpproxy v1.0.6 h1:ZXLE5OcLbZ3LVKGjOP+JyNbeWcLOYTR+5srG1T9LF1s=
 github.com/sunshineplan/utils/httpproxy v1.0.6/go.mod h1:4TO5jy9+SS2y0L6Znua0ZRDvuabRdcLUYBIfUkL8Yk0=
 golang.org/x/net v0.10.0 h1:X2//UzNDwYmtCLn7To6G58Wr6f5ahEAQgKNzv9Y951M=
