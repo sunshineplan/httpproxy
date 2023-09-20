@@ -1,48 +1,34 @@
 package main
 
 import (
-	"io"
-	"log"
+	"log/slog"
 	"os"
+
+	"github.com/sunshineplan/utils/log"
 )
 
-var accessLogger = log.New(os.Stderr, "", log.LstdFlags)
-var errorLogger = log.New(os.Stderr, "", log.LstdFlags)
+var (
+	accessLogger = log.Default()
+	errorLogger  = log.Default()
+)
 
 func initLogger() {
+	if *debug {
+		accessLogger.SetLevel(slog.LevelDebug)
+		errorLogger.SetLevel(slog.LevelDebug)
+	}
 	if *accesslog != "" {
-		if *debug {
-			accessLogger.Println("accesslog:", *accesslog)
-		}
-		f, err := os.OpenFile(*accesslog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-		if err != nil {
-			log.Println("failed to open access log file:", err)
-			if !*debug {
-				accessLogger.SetOutput(io.Discard)
-			}
-		} else {
-			accessLogger.SetOutput(f)
-		}
+		accessLogger.Debug("accesslog: " + *accesslog)
+		accessLogger.SetFile(*accesslog)
 	} else if !*debug {
-		accessLogger.SetOutput(io.Discard)
+		accessLogger = log.New("", "", 0)
 	}
 
 	if *errorlog != "" {
-		if *debug {
-			accessLogger.Println("errorlog:", *errorlog)
-		}
-		f, err := os.OpenFile(*errorlog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-		if err != nil {
-			log.Println("failed to open access log file:", err)
-			if !*debug {
-				errorLogger.SetOutput(io.Discard)
-			}
-		} else {
-			log.SetOutput(io.MultiWriter(os.Stderr, f))
-			errorLogger.SetOutput(f)
-		}
+		errorLogger.Debug("errorlog: " + *errorlog)
+		errorLogger.SetOutput(*errorlog, os.Stderr)
 	} else if !*debug {
-		errorLogger.SetOutput(io.Discard)
+		errorLogger = log.New("", "", 0)
 	}
-	server.ErrorLog = errorLogger
+	server.ErrorLog = errorLogger.Logger
 }

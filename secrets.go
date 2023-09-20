@@ -30,9 +30,7 @@ func parseAccount(s string) (account, error) {
 }
 
 func initSecrets() {
-	if *debug {
-		accessLogger.Println("secrets:", *secrets)
-	}
+	accessLogger.Debug("secrets: " + *secrets)
 	if rows, err := txt.ReadFile(*secrets); err != nil {
 		errorLogger.Println("failed to load secrets file:", err)
 	} else {

@@ -38,9 +38,7 @@ func (s allow) isAllow(ip string) bool {
 }
 
 func initWhitelist() {
-	if *debug {
-		accessLogger.Println("whitelist:", *whitelist)
-	}
+	accessLogger.Debug("whitelist: " + *whitelist)
 	if rows, err := txt.ReadFile(*whitelist); err != nil {
 		errorLogger.Println("failed to load whitelist file:", err)
 	} else {
