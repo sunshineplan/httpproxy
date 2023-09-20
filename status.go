@@ -109,9 +109,7 @@ func saveStatus() {
 }
 
 func initStatus() {
-	if *debug {
-		accessLogger.Println("status:", *status)
-	}
+	accessLogger.Debug("status: " + *status)
 	if _, err := os.Stat(*status); err == nil {
 		if err := keepStatus(0); err != nil {
 			errorLogger.Print(err)

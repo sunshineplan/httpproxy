@@ -127,9 +127,7 @@ func saveDatabase() {
 }
 
 func initDatabase() {
-	if *debug {
-		accessLogger.Println("database:", database)
-	}
+	accessLogger.Debug("database: " + database)
 	if f, err := os.Open(database); err == nil {
 		defer f.Close()
 		if zr, err := gzip.NewReader(f); err == nil {

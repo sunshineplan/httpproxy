@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/base64"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 
@@ -15,17 +14,13 @@ import (
 var p *httpproxy.Proxy
 
 func initProxy() {
-	if *debug {
-		accessLogger.Println("proxy:", *proxy)
-	}
+	accessLogger.Debug("proxy: " + *proxy)
 	proxyURL, err := url.Parse(*proxy)
 	if err != nil {
-		log.Fatalln("bad server address:", *proxy)
+		errorLogger.Fatalln("bad server address:", *proxy)
 	}
 	p = httpproxy.New(proxyURL, nil)
-	if *debug {
-		accessLogger.Print("Proxy ready")
-	}
+	accessLogger.Debug("Proxy ready")
 }
 
 func clientTunneling(user string, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request) {
