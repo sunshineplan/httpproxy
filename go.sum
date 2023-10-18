@@ -2,8 +2,8 @@ github.com/fsnotify/fsnotify v1.6.0 h1:n+5WquG0fcWoWp6xPWfHdbskMCQaFnG6PfBrh1Ky4
 github.com/fsnotify/fsnotify v1.6.0/go.mod h1:sl3t1tCWJFWoRz9R8WJCbQihKKwmorjAbSClcnxKAGw=
 github.com/sunshineplan/limiter v1.0.0 h1:wx3q5eS5J+ggXlAxzg9k6UbDyJYrysNmHyxt5cNmCP8=
 github.com/sunshineplan/limiter v1.0.0/go.mod h1:+Pjd5Pu7i5YclrnFz+MBFxGB9+MZ2cytQeV+S9kXOxY=
-github.com/sunshineplan/service v1.0.17 h1:riLoQsd3X+YCY8mmfR0cUJRRt2IvhV4K41SR+w/vm3Y=
-github.com/sunshineplan/service v1.0.17/go.mod h1:PMOKLXk5Y+G07sUoXMfPq0cYk9MgkTc9pGn0f4Cigo4=
+github.com/sunshineplan/service v1.0.18 h1:gWvADCwp27exc51oVxDLvmQyYEAKOH8/2VlAGkjy8hU=
+github.com/sunshineplan/service v1.0.18/go.mod h1:PMOKLXk5Y+G07sUoXMfPq0cYk9MgkTc9pGn0f4Cigo4=
 github.com/sunshineplan/utils v0.1.51 h1:d9bgvMwUJFw9s0HTMq7cD8zjKiHJaBdJ/yR5HYvBBOA=
 github.com/sunshineplan/utils v0.1.51/go.mod h1:7zhDUGgKo2FMFzs7j6IL7B/lh3BRuE7rb7R7IgGOAfc=
 github.com/sunshineplan/utils/httpproxy v1.0.6 h1:ZXLE5OcLbZ3LVKGjOP+JyNbeWcLOYTR+5srG1T9LF1s=
