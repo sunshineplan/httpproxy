@@ -3,7 +3,7 @@ module httpproxy
 go 1.21.0
 
 require (
-	github.com/fsnotify/fsnotify v1.6.0
+	github.com/fsnotify/fsnotify v1.7.0
 	github.com/sunshineplan/limiter v1.0.0
 	github.com/sunshineplan/service v1.0.18
 	github.com/sunshineplan/utils v0.1.51
