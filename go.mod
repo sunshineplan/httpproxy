@@ -8,7 +8,7 @@ require (
 	github.com/sunshineplan/service v1.0.19
 	github.com/sunshineplan/utils v0.1.55
 	github.com/sunshineplan/utils/httpproxy v1.0.6
-	golang.org/x/time v0.3.0
+	golang.org/x/time v0.4.0
 )
 
 require (
