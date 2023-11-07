@@ -1,6 +1,6 @@
 module httpproxy
 
-go 1.21.0
+go 1.21
 
 require (
 	github.com/fsnotify/fsnotify v1.7.0

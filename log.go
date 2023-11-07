@@ -13,22 +13,20 @@ var (
 )
 
 func initLogger() {
+	if *accesslog != "" || !*debug {
+		accessLogger = log.New(*accesslog, "", log.LstdFlags)
+	}
+	if *errorlog != "" {
+		errorLogger = log.New(*errorlog, "", log.LstdFlags)
+		errorLogger.SetExtra(os.Stderr)
+	} else if !*debug {
+		errorLogger = log.New("", "", 0)
+	}
 	if *debug {
 		accessLogger.SetLevel(slog.LevelDebug)
 		errorLogger.SetLevel(slog.LevelDebug)
-	}
-	if *accesslog != "" {
 		accessLogger.Debug("accesslog: " + *accesslog)
-		accessLogger.SetFile(*accesslog)
-	} else if !*debug {
-		accessLogger = log.New("", "", 0)
-	}
-
-	if *errorlog != "" {
 		errorLogger.Debug("errorlog: " + *errorlog)
-		errorLogger.SetOutput(*errorlog, os.Stderr)
-	} else if !*debug {
-		errorLogger = log.New("", "", 0)
 	}
 	server.ErrorLog = errorLogger.Logger
 }
