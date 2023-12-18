@@ -2,7 +2,6 @@ package main
 
 import (
 	"log/slog"
-	"os"
 
 	"github.com/sunshineplan/utils/log"
 )
