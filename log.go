@@ -18,7 +18,6 @@ func initLogger() {
 	}
 	if *errorlog != "" {
 		errorLogger = log.New(*errorlog, "", log.LstdFlags)
-		errorLogger.SetExtra(os.Stderr)
 	} else if !*debug {
 		errorLogger = log.New("", "", 0)
 	}
