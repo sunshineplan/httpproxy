@@ -29,10 +29,9 @@ jobs:
           script: |
             let release
             try {
-              release = await github.rest.repos.getReleaseByTag({
+              release = await github.rest.repos.getLatestRelease({
                 owner: context.repo.owner,
-                repo: context.repo.repo,
-                tag: 'v1.0'
+                repo: context.repo.repo
               })
             } catch(e) {
               console.error(e)
@@ -48,21 +47,21 @@ jobs:
             await github.rest.git.deleteRef({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              ref: 'tags/v1.0'
+              ref: 'tags/'+release.data.tag_name
             })
 
       - name: Build and Pack
         id: build
         run: |
           make pack
-          echo "date=$(TZ=PRC date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+          echo "date=$(TZ=PRC date +'%Y%m%d%H%M')" >> $GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v1.0
+          tag_name: ${{ steps.build.outputs.date }}
           name: ${{ steps.build.outputs.date }}
           body: ${{ steps.build.outputs.date }}
           files: release*
