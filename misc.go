@@ -97,7 +97,7 @@ func checkAccount(user, pass string) (hasAccount bool, exceeded bool, lim *limit
 	} else if limit.daily == 0 && limit.monthly == 0 {
 		return true, false, limit.speed, nil
 	} else if v, ok := db.Load(user); ok {
-		return true, limit.isExceeded(v.(*record)), limit.speed, sometimes[account{user, pass}]
+		return true, limit.isExceeded(v), limit.speed, sometimes[account{user, pass}]
 	} else {
 		return true, false, limit.speed, sometimes[account{user, pass}]
 	}

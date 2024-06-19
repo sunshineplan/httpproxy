@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunshineplan/utils/cache"
 	"github.com/sunshineplan/utils/counter"
 	"github.com/sunshineplan/utils/scheduler"
 	"github.com/sunshineplan/utils/txt"
@@ -20,17 +21,16 @@ const timeFormat = time.RFC3339Nano
 var database string
 
 var (
-	db            sync.Map
+	db            = cache.NewMap[string, *record]()
 	databaseMutex sync.Mutex
 )
 
 func init() {
 	scheduler.NewScheduler().At(scheduler.AtClock(0, 0, 0)).Do(func(t time.Time) {
-		db.Range(func(_, v any) bool {
-			record := v.(*record)
-			record.today.Add(-record.today.Load())
+		db.Range(func(_ string, v *record) bool {
+			v.today.Add(-v.today.Load())
 			if t.Day() == 1 {
-				record.monthly.Add(-record.monthly.Load())
+				v.monthly.Add(-v.monthly.Load())
 			}
 			return true
 		})
@@ -59,7 +59,7 @@ func count(user string, w io.Writer) io.Writer {
 		return w
 	}
 	if v, ok := db.Load(user); ok {
-		return v.(*record).writer(w)
+		return v.writer(w)
 	}
 	return store(user, 0, 0, 0).writer(w)
 }
@@ -117,8 +117,7 @@ func saveDatabase() {
 
 	for user := range accounts {
 		if v, ok := db.Load(user.name); ok {
-			record := v.(*record)
-			fmt.Fprintf(zw, "%s:%d:%d:%d\n", user.name, record.today.Load(), record.monthly.Load(), record.total.Load())
+			fmt.Fprintf(zw, "%s:%d:%d:%d\n", user.name, v.today.Load(), v.monthly.Load(), v.total.Load())
 		}
 	}
 	zw.Close()

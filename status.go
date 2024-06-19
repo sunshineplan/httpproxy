@@ -1,25 +1,27 @@
 package main
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
+	"github.com/sunshineplan/utils/pool"
 	"github.com/sunshineplan/utils/scheduler"
 	"github.com/sunshineplan/utils/unit"
 )
+
+var usagePool = pool.New[usage]()
 
 type usage struct {
 	user                  string
 	today, monthly, total unit.ByteSize
 }
-
-var emptyUsage usage
 
 func (res usage) String(length [3]int) string {
 	return fmt.Sprint(
@@ -30,38 +32,39 @@ func (res usage) String(length [3]int) string {
 	)
 }
 
-func getUsage(user string) (res usage) {
+func getUsage(user string) *usage {
 	if v, ok := db.Load(user); ok {
-		v := v.(*record)
+		res := usagePool.Get()
 		res.user = user
 		res.today = unit.ByteSize(v.today.Load())
 		res.monthly = unit.ByteSize(v.monthly.Load())
 		res.total = unit.ByteSize(v.total.Load())
+		return res
 	}
-	return
+	return nil
 }
 
 func writeUsages(w io.Writer) {
-	var res []usage
-	if usage := getUsage("anonymous"); usage != emptyUsage {
+	var res []*usage
+	if usage := getUsage("anonymous"); usage != nil {
 		res = append(res, usage)
 	}
 	secretsMutex.Lock()
 	for user := range accounts {
-		if usage := getUsage(user.name); usage != emptyUsage {
+		if usage := getUsage(user.name); usage != nil {
 			res = append(res, usage)
 		}
 	}
 	secretsMutex.Unlock()
 
-	sort.Slice(res, func(i, j int) bool {
-		if res[i].today == res[j].today {
-			if res[i].monthly == res[j].monthly {
-				return res[i].today > res[j].today
+	slices.SortStableFunc(res, func(a, b *usage) int {
+		if a.today == b.today {
+			if a.monthly == b.monthly {
+				return -cmp.Compare(a.total, b.total)
 			}
-			return res[i].monthly > res[j].monthly
+			return -cmp.Compare(a.monthly, b.monthly)
 		}
-		return res[i].today > res[j].today
+		return -cmp.Compare(a.today, b.today)
 	})
 
 	length := [3]int{4, 5, 7}
@@ -86,6 +89,7 @@ func writeUsages(w io.Writer) {
 	)
 	for _, i := range res {
 		fmt.Fprintln(w, i.String(length))
+		usagePool.Put(i)
 	}
 }
 

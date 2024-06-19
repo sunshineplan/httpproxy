@@ -27,4 +27,5 @@ func initLogger() {
 		errorLogger.Debug("errorlog: " + *errorlog)
 	}
 	server.ErrorLog = errorLogger.Logger
+	svc.Logger = accessLogger
 }

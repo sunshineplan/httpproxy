@@ -124,6 +124,8 @@ func main() {
 		*status = filepath.Join(filepath.Dir(self), "status")
 	}
 
+	initLogger()
+
 	if err := svc.ParseAndRun(flag.Args()); err != nil {
 		svc.Fatal(err)
 	}

@@ -11,64 +11,52 @@ import (
 	"time"
 )
 
-func runServer() error {
+func initServer() func() error {
 	server.Handler = http.HandlerFunc(serverHandler)
 	server.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler))
 	server.ReadTimeout = time.Minute * 10
 	server.ReadHeaderTimeout = time.Second * 4
 	server.WriteTimeout = time.Minute * 10
-
-	initLogger()
-	initWhitelist()
-	initSecrets()
-	initDatabase()
-	initStatus()
-
-	defer func() {
-		saveStatus()
-		saveDatabase()
-	}()
-
 	if *https {
-		return server.RunTLS(*cert, *privkey)
+		return func() error {
+			return server.RunTLS(*cert, *privkey)
+		}
 	} else {
-		return server.Run()
+		return server.Run
 	}
 }
 
-func runClient() error {
+func initClient() func() error {
 	server.Handler = http.HandlerFunc(clientHandler)
-
-	initLogger()
 	initProxy()
-	initWhitelist()
-	initSecrets()
-	initDatabase()
-	initStatus()
-
-	defer func() {
-		saveStatus()
-		saveDatabase()
-	}()
-
-	return server.Run()
+	return server.Run
 }
 
 func run() error {
+	var run func() error
 	switch mode := strings.ToLower(*mode); mode {
 	case "server":
 		if server.Port == "" {
 			server.Port = "1080"
 		}
-		return runServer()
+		run = initServer()
 	case "client":
 		if server.Port == "" {
 			server.Port = "8080"
 		}
-		return runClient()
+		run = initClient()
 	default:
 		return errors.New("unknow mode: " + mode)
 	}
+	initWhitelist()
+	initSecrets()
+	initDatabase()
+	initStatus()
+	defer func() {
+		saveStatus()
+		saveDatabase()
+	}()
+	return run()
 }
 
 func test() error {
