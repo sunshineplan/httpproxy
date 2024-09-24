@@ -1,12 +1,13 @@
 module httpproxy
 
 go 1.22
+toolchain go1.23.1
 
 require (
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/sunshineplan/limiter v1.0.0
 	github.com/sunshineplan/service v1.0.21
-	github.com/sunshineplan/utils v0.1.71
+	github.com/sunshineplan/utils v0.1.72
 	github.com/sunshineplan/utils/httpproxy v1.0.6
 	golang.org/x/time v0.6.0
 )
