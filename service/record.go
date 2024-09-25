@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/sunshineplan/utils/cache"
@@ -18,16 +17,13 @@ import (
 
 const timeFormat = time.RFC3339Nano
 
-var database string
+var recordFile string
 
-var (
-	db            = cache.NewMap[string, *record]()
-	databaseMutex sync.Mutex
-)
+var recordMap = cache.NewMap[string, *record]()
 
 func init() {
 	scheduler.NewScheduler().At(scheduler.AtClock(0, 0, 0)).Do(func(t time.Time) {
-		db.Range(func(_ string, v *record) bool {
+		recordMap.Range(func(_ string, v *record) bool {
 			v.today.Add(-v.today.Load())
 			if t.Day() == 1 {
 				v.monthly.Add(-v.monthly.Load())
@@ -50,7 +46,7 @@ func store(user string, today, monthly, total int64) *record {
 	v.today.Add(today)
 	v.monthly.Add(monthly)
 	v.total.Add(total)
-	db.Store(user, v)
+	recordMap.Store(user, v)
 	return v
 }
 
@@ -58,13 +54,13 @@ func count(user string, w io.Writer) io.Writer {
 	if user == "" {
 		return w
 	}
-	if v, ok := db.Load(user); ok {
+	if v, ok := recordMap.Load(user); ok {
 		return v.writer(w)
 	}
 	return store(user, 0, 0, 0).writer(w)
 }
 
-func parseDatabase(rows []string) {
+func parseRecord(rows []string) {
 	if len(rows) == 0 {
 		return
 	}
@@ -100,10 +96,7 @@ func parseDatabase(rows []string) {
 	}
 }
 
-func saveDatabase() {
-	databaseMutex.Lock()
-	defer databaseMutex.Unlock()
-
+func saveRecord(base *Base) {
 	f, err := os.CreateTemp("", "")
 	if err != nil {
 		errorLogger.Print(err)
@@ -112,36 +105,30 @@ func saveDatabase() {
 	zw := gzip.NewWriter(f)
 	fmt.Fprintln(zw, time.Now().Format(timeFormat))
 
-	secretsMutex.Lock()
-	defer secretsMutex.Unlock()
-
-	for user := range accounts {
-		if v, ok := db.Load(user.name); ok {
-			fmt.Fprintf(zw, "%s:%d:%d:%d\n", user.name, v.today.Load(), v.monthly.Load(), v.total.Load())
+	base.accounts.Range(func(a account, _ *limit) bool {
+		if v, ok := recordMap.Load(a.name); ok {
+			fmt.Fprintf(zw, "%s:%d:%d:%d\n", a.name, v.today.Load(), v.monthly.Load(), v.total.Load())
 		}
-	}
+		return true
+	})
+
 	zw.Close()
 	f.Close()
-	os.Rename(f.Name(), database)
+	os.Rename(f.Name(), recordFile)
 }
 
-func initDatabase() {
-	accessLogger.Debug("database: " + database)
-	if f, err := os.Open(database); err == nil {
+func initRecord(base *Base) {
+	accessLogger.Debug("record file: " + recordFile)
+	if f, err := os.Open(recordFile); err == nil {
 		defer f.Close()
 		if zr, err := gzip.NewReader(f); err == nil {
 			defer zr.Close()
-			rows, err := txt.ReadAll(zr)
-			if err != nil {
-				errorLogger.Print(err)
-			} else {
-				parseDatabase(rows)
-			}
+			parseRecord(txt.ReadAll(zr))
 		} else {
 			errorLogger.Print(err)
 		}
 	} else {
 		errorLogger.Print(err)
 	}
-	scheduler.NewScheduler().At(scheduler.AtMinute(0)).Do(func(_ time.Time) { saveDatabase() })
+	scheduler.NewScheduler().At(scheduler.AtMinute(0)).Do(func(_ time.Time) { saveRecord(base) })
 }

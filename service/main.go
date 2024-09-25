@@ -9,11 +9,12 @@ import (
 
 	"github.com/sunshineplan/service"
 	"github.com/sunshineplan/utils/flags"
-	"github.com/sunshineplan/utils/httpsvr"
 )
 
 // common flags
 var (
+	host      = flag.String("host", "", "Listening host")
+	port      = flag.String("port", "", "Listening port")
 	mode      = flag.String("mode", "server", "server or client mode")
 	accesslog = flag.String("access-log", "", "Path to access log file")
 	errorlog  = flag.String("error-log", "", "Path to error log file")
@@ -82,10 +83,7 @@ client side:
     	Password for Basic Authentication
 `
 
-var (
-	server = httpsvr.New()
-	svc    = service.New()
-)
+var svc = service.New()
 
 func init() {
 	svc.Name = "HTTPProxy"
@@ -103,13 +101,11 @@ func main() {
 	if err != nil {
 		log.Fatalln("Failed to get self path:", err)
 	}
-	database = filepath.Join(filepath.Dir(self), "database")
+	recordFile = filepath.Join(filepath.Dir(self), "database")
 
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), `Usage of %s:%s%s%s%s`, os.Args[0], commonFlag, serverFlag, clientFlag, svc.Usage())
 	}
-	flag.StringVar(&server.Host, "host", "", "Listening host")
-	flag.StringVar(&server.Port, "port", "", "Listening port")
 	flag.StringVar(&svc.Options.UpdateURL, "update", "", "Update URL")
 	flags.SetConfigFile(filepath.Join(filepath.Dir(self), "config.ini"))
 	flags.Parse()
@@ -124,7 +120,8 @@ func main() {
 		*status = filepath.Join(filepath.Dir(self), "status")
 	}
 
-	initLogger()
+	base = NewBase(*host, *port)
+	initLogger(base)
 
 	if err := svc.ParseAndRun(flag.Args()); err != nil {
 		svc.Fatal(err)

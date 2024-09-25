@@ -3,18 +3,10 @@ package main
 import (
 	"errors"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/sunshineplan/limiter"
+	"github.com/sunshineplan/utils/cache"
 	"github.com/sunshineplan/utils/txt"
-	"golang.org/x/time/rate"
-)
-
-var (
-	secretsMutex sync.Mutex
-	accounts     map[account]limit
-	sometimes    map[account]*rate.Sometimes
 )
 
 type account struct {
@@ -29,34 +21,34 @@ func parseAccount(s string) (account, error) {
 	return account{fields[0], fields[1]}, nil
 }
 
-func initSecrets() {
-	accessLogger.Debug("secrets: " + *secrets)
-	if rows, err := txt.ReadFile(*secrets); err != nil {
+func initSecrets(file string) *cache.Map[account, *limit] {
+	accessLogger.Debug("secrets: " + file)
+	accounts := cache.NewMap[account, *limit]()
+	if rows, err := txt.ReadFile(file); err != nil {
 		errorLogger.Println("failed to load secrets file:", err)
 	} else {
-		parseSecrets(rows)
+		parseSecrets(accounts, rows)
 	}
 
 	if err := watchFile(
-		*secrets,
+		file,
 		func() {
-			rows, err := txt.ReadFile(*secrets)
+			rows, err := txt.ReadFile(file)
 			if err != nil {
 				errorLogger.Print(err)
 			} else {
-				parseSecrets(rows)
+				accounts.Clear()
+				parseSecrets(accounts, rows)
 			}
 		},
-		func() { parseSecrets(nil) },
+		accounts.Clear,
 	); err != nil {
 		errorLogger.Print(err)
-		return
 	}
+	return accounts
 }
 
-func parseSecrets(s []string) {
-	m := make(map[account]limit)
-	st := make(map[account]*rate.Sometimes)
+func parseSecrets(m *cache.Map[account, *limit], s []string) {
 	list := make(map[string]struct{})
 	for _, row := range s {
 		if i := strings.IndexRune(row, '#'); i != -1 {
@@ -73,7 +65,7 @@ func parseSecrets(s []string) {
 				continue
 			}
 			if _, ok := list[account.name]; !ok {
-				m[account] = limit{speed: limiter.New(limiter.Inf)}
+				m.Store(account, &limit{speed: limiter.New(limiter.Inf)})
 				list[account.name] = struct{}{}
 			} else {
 				errorLogger.Println("duplicate account name:", account.name)
@@ -90,19 +82,21 @@ func parseSecrets(s []string) {
 				continue
 			}
 			if _, ok := list[account.name]; !ok {
-				m[account] = limit
-				st[account] = newSometimes(time.Minute)
+				m.Store(account, limit)
 				list[account.name] = struct{}{}
 			} else {
 				errorLogger.Println("duplicate account name:", account.name)
 			}
 		}
 	}
-	accessLogger.Printf("loaded %d accounts", len(m))
+	accessLogger.Printf("loaded %d accounts", accountsCount(m))
+}
 
-	secretsMutex.Lock()
-	defer secretsMutex.Unlock()
-
-	accounts = m
-	sometimes = st
+func accountsCount(m *cache.Map[account, *limit]) int {
+	var n int
+	m.Range(func(a account, l *limit) bool {
+		n++
+		return true
+	})
+	return n
 }
