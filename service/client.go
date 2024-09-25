@@ -8,13 +8,13 @@ import (
 
 	"github.com/sunshineplan/httpproxy"
 	"github.com/sunshineplan/limiter"
-	netproxy "golang.org/x/net/proxy"
+	"golang.org/x/net/proxy"
 )
 
 type Client struct {
 	*Base
 	u     *url.URL
-	proxy netproxy.Dialer
+	proxy proxy.Dialer
 }
 
 func NewClient(base *Base, u *url.URL) *Client {

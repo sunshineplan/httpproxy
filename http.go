@@ -1,3 +1,4 @@
+// Package httpproxy provides an HTTP proxy implementation
 package httpproxy
 
 import (
@@ -15,6 +16,7 @@ import (
 	"golang.org/x/net/proxy"
 )
 
+// Dialer represents a proxy dialer
 type Dialer struct {
 	u                  *url.URL
 	InsecureSkipVerify bool
@@ -23,6 +25,7 @@ type Dialer struct {
 	ProxyDial func(context.Context, string, string) (net.Conn, error)
 }
 
+// New creates a new proxy Dialer
 func New(u *url.URL, forward proxy.Dialer) proxy.Dialer {
 	d := &Dialer{u: u}
 	if forward != nil {
@@ -39,7 +42,8 @@ func New(u *url.URL, forward proxy.Dialer) proxy.Dialer {
 	return d
 }
 
-func (d *Dialer) DialWithConn(ctx context.Context, c net.Conn, network, address string) error {
+// connect establishes a connection to the proxy server
+func (d *Dialer) connect(c net.Conn, network, address string) error {
 	switch network {
 	case "tcp", "tcp6", "tcp4":
 	default:
@@ -74,6 +78,7 @@ func (d *Dialer) DialWithConn(ctx context.Context, c net.Conn, network, address 
 	return nil
 }
 
+// Dial connects to the address on the named network using the proxy
 func (d *Dialer) Dial(network, address string) (conn net.Conn, err error) {
 	switch network {
 	case "tcp", "tcp6", "tcp4":
@@ -92,13 +97,14 @@ func (d *Dialer) Dial(network, address string) (conn net.Conn, err error) {
 		hostname, _, _ := strings.Cut(d.u.Host, ":")
 		conn = tls.Client(conn, &tls.Config{ServerName: hostname, InsecureSkipVerify: d.InsecureSkipVerify})
 	}
-	if err = d.DialWithConn(context.Background(), conn, network, address); err != nil {
+	if err = d.connect(conn, network, address); err != nil {
 		conn.Close()
 		return nil, err
 	}
 	return
 }
 
+// DialContext connects to the address on the named network using the proxy with the provided context
 func (d *Dialer) DialContext(ctx context.Context, network, address string) (conn net.Conn, err error) {
 	switch network {
 	case "tcp", "tcp6", "tcp4":
@@ -114,7 +120,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (conn
 	if err != nil {
 		return
 	}
-	if err = d.DialWithConn(ctx, conn, network, address); err != nil {
+	if err = d.connect(conn, network, address); err != nil {
 		conn.Close()
 		return nil, err
 	}
