@@ -15,6 +15,7 @@ pack: build
 	tar --transform '$(transform)' -cvzf release-windows-amd64.tar.gz httpproxy-windows-amd64.exe *.default
 
 test:
+	go test -v ./...
 	go build -v ./...
 	go clean
 

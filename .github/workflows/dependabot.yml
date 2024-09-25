@@ -22,7 +22,9 @@ jobs:
           go-version: stable
 
       - name: Test Code
-        run: make test
+        run: |
+          cd service
+          make test
 
   merge:
     if: ${{ github.actor == 'dependabot[bot]' }}

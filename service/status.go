@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunshineplan/utils/cache"
 	"github.com/sunshineplan/utils/pool"
 	"github.com/sunshineplan/utils/scheduler"
 	"github.com/sunshineplan/utils/unit"
@@ -33,7 +34,7 @@ func (res usage) String(length [3]int) string {
 }
 
 func getUsage(user string) *usage {
-	if v, ok := db.Load(user); ok {
+	if v, ok := recordMap.Load(user); ok {
 		res := usagePool.Get()
 		res.user = user
 		res.today = unit.ByteSize(v.today.Load())
@@ -44,18 +45,18 @@ func getUsage(user string) *usage {
 	return nil
 }
 
-func writeUsages(w io.Writer) {
+func writeUsages(accounts *cache.Map[account, *limit], w io.Writer) {
 	var res []*usage
 	if usage := getUsage("anonymous"); usage != nil {
 		res = append(res, usage)
 	}
-	secretsMutex.Lock()
-	for user := range accounts {
-		if usage := getUsage(user.name); usage != nil {
+
+	accounts.Range(func(a account, _ *limit) bool {
+		if usage := getUsage(a.name); usage != nil {
 			res = append(res, usage)
 		}
-	}
-	secretsMutex.Unlock()
+		return true
+	})
 
 	slices.SortStableFunc(res, func(a, b *usage) int {
 		if a.today == b.today {
@@ -95,7 +96,7 @@ func writeUsages(w io.Writer) {
 
 var start time.Time
 
-func saveStatus() {
+func saveStatus(base *Base) {
 	f, err := os.Create(*status)
 	if err != nil {
 		errorLogger.Print(err)
@@ -107,12 +108,12 @@ func saveStatus() {
 	fmt.Fprintln(f, "Last Update:", time.Now().Format("2006-01-02 15:04:05"))
 	fmt.Fprintln(f)
 	fmt.Fprintln(f, "Throughput:")
-	fmt.Fprintf(f, "Send: %s   Receive: %s\n", unit.ByteSize(server.WriteCount()), unit.ByteSize(server.ReadCount()))
+	fmt.Fprintf(f, "Send: %s   Receive: %s\n", unit.ByteSize(base.WriteCount()), unit.ByteSize(base.ReadCount()))
 	fmt.Fprintln(f)
-	writeUsages(f)
+	writeUsages(base.accounts, f)
 }
 
-func initStatus() {
+func initStatus(base *Base) {
 	accessLogger.Debug("status: " + *status)
 	if _, err := os.Stat(*status); err == nil {
 		if err := keepStatus(0); err != nil {
@@ -125,8 +126,8 @@ func initStatus() {
 	}
 
 	start = time.Now()
-	saveStatus()
-	scheduler.NewScheduler().At(scheduler.AtSecond(0)).Do(func(_ time.Time) { saveStatus() })
+	saveStatus(base)
+	scheduler.NewScheduler().At(scheduler.AtSecond(0)).Do(func(_ time.Time) { saveStatus(base) })
 }
 
 func keepStatus(n int) (err error) {
