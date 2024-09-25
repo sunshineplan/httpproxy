@@ -25,7 +25,7 @@ import (
 
 	"github.com/sunshineplan/httpproxy"
 	"github.com/sunshineplan/limiter"
-	netproxy "golang.org/x/net/proxy"
+	"golang.org/x/net/proxy"
 )
 
 var testHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +56,7 @@ func newRequest(url string, m map[string]string) *http.Request {
 	return req
 }
 
-func response(proxy netproxy.Dialer, addr string, req *http.Request) (m map[string]string, err error) {
+func do(proxy proxy.Dialer, addr string, req *http.Request) (m map[string]string, err error) {
 	c, err := proxy.Dial("tcp", addr)
 	if err != nil {
 		return
@@ -139,7 +139,7 @@ func TestProxy(t *testing.T) {
 	time.Sleep(time.Second)
 
 	u, _ := url.Parse("http://localhost:" + c.Port)
-	res, err := response(httpproxy.New(u, nil), addr, req)
+	res, err := do(httpproxy.New(u, nil), addr, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +177,7 @@ func TestTLS(t *testing.T) {
 	time.Sleep(time.Second)
 
 	u, _ := url.Parse("http://localhost:" + c.Port)
-	res, err := response(httpproxy.New(u, nil), addr, req)
+	res, err := do(httpproxy.New(u, nil), addr, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +249,7 @@ func TestAuth(t *testing.T) {
 		time.Sleep(time.Second)
 
 		u, _ := url.Parse(testcase.proxy + ":" + c.Port)
-		res, err := response(httpproxy.New(u, nil), addr, req)
+		res, err := do(httpproxy.New(u, nil), addr, req)
 		if testcase.err != "" {
 			if err == nil ||
 				!strings.Contains(err.Error(), testcase.err) {

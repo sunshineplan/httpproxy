@@ -68,9 +68,9 @@ server side:
 
 // client flags
 var (
-	proxy    = flag.String("proxy", "", "Proxy address")
-	username = flag.String("username", "", "Username")
-	password = flag.String("password", "", "Password")
+	proxyAddr = flag.String("proxy", "", "Proxy address")
+	username  = flag.String("username", "", "Username")
+	password  = flag.String("password", "", "Password")
 )
 
 const clientFlag = `

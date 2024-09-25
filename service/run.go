@@ -28,7 +28,7 @@ func run() error {
 		if base.Port == "" {
 			base.Port = "8080"
 		}
-		runner = NewClient(base, parseProxy(*proxy)).SetProxyAuth(*username, *password)
+		runner = NewClient(base, parseProxy(*proxyAddr)).SetProxyAuth(*username, *password)
 	default:
 		return errors.New("unknow mode: " + mode)
 	}
@@ -66,7 +66,7 @@ func test() error {
 	l.Close()
 
 	if strings.ToLower(*mode) == "client" {
-		if _, err := url.Parse(*proxy); err != nil {
+		if _, err := url.Parse(*proxyAddr); err != nil {
 			return err
 		}
 	}
