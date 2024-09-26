@@ -39,8 +39,8 @@ func (base *Base) hasAccount() bool {
 }
 
 func (base *Base) hasWhitelist() bool {
-	allows, ok := base.whitelist.Load()
-	return ok && len(allows) > 0
+	allows, _ := base.whitelist.Load()
+	return len(allows) > 0
 }
 
 func (base *Base) isAllow(remoteAddr string) bool {
@@ -67,15 +67,13 @@ func (base *Base) checkAccount(user, pass string) (found bool, exceeded bool, li
 }
 
 func (base *Base) Auth(w http.ResponseWriter, r *http.Request) (string, *limiter.Limiter, bool) {
-	user := "anonymous"
-	var pass string
-	var ok bool
-	if !base.hasAccount() && base.hasWhitelist() && !base.isAllow(r.RemoteAddr) {
-		notAllow.Do(func() { accessLogger.Printf("%s not allow", r.RemoteAddr) })
-		http.Error(w, "access not allow", http.StatusForbidden)
-		return "", nil, false
-	} else if base.hasAccount() && !base.isAllow(r.RemoteAddr) {
-		user, pass, ok = parseBasicAuth(r.Header.Get("Proxy-Authorization"))
+	switch hasWhitelist, hasAccount := base.hasWhitelist(), base.hasAccount(); {
+	case !hasWhitelist && !hasAccount:
+		return "anonymous", limiter.New(limiter.Inf), true
+	case hasWhitelist && base.isAllow(r.RemoteAddr):
+		return "whitelist", limiter.New(limiter.Inf), true
+	case hasAccount:
+		user, pass, ok := parseBasicAuth(r.Header.Get("Proxy-Authorization"))
 		if !ok {
 			authRequired.Do(func() { accessLogger.Printf("%s Proxy Authentication Required", r.RemoteAddr) })
 			w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
@@ -93,8 +91,11 @@ func (base *Base) Auth(w http.ResponseWriter, r *http.Request) (string, *limiter
 		} else {
 			return user, limit.speed, true
 		}
+	default:
+		notAllow.Do(func() { accessLogger.Printf("%s not allow", r.RemoteAddr) })
+		http.Error(w, "access not allow", http.StatusForbidden)
+		return "", nil, false
 	}
-	return user, limiter.New(limiter.Inf), true
 }
 
 func parseBasicAuth(auth string) (username, password string, ok bool) {
