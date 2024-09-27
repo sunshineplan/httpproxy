@@ -6,6 +6,13 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"golang.org/x/net/proxy"
+)
+
+const (
+	defaultServerPort = "8000"
+	defaultClientPort = "8888"
 )
 
 type Runner interface {
@@ -17,7 +24,7 @@ func run() error {
 	switch mode := strings.ToLower(*mode); mode {
 	case "server":
 		if base.Port == "" {
-			base.Port = "1080"
+			base.Port = defaultServerPort
 		}
 		s := NewServer(base)
 		if *https {
@@ -26,9 +33,16 @@ func run() error {
 		runner = s
 	case "client":
 		if base.Port == "" {
-			base.Port = "8080"
+			base.Port = defaultClientPort
 		}
-		runner = NewClient(base, parseProxy(*proxyAddr)).SetProxyAuth(*username, *password)
+		c, err := NewClient(base, parseProxy(*proxyAddr))
+		if err != nil {
+			return err
+		}
+		if *username != "" || *password != "" {
+			c.SetProxyAuth(&proxy.Auth{User: *username, Password: *password})
+		}
+		runner = c
 	default:
 		return errors.New("unknow mode: " + mode)
 	}
@@ -47,9 +61,9 @@ func test() error {
 	if base.Port == "" {
 		switch strings.ToLower(*mode) {
 		case "server":
-			base.Port = "1080"
+			base.Port = defaultServerPort
 		case "client":
-			base.Port = "8080"
+			base.Port = defaultClientPort
 		default:
 			return errors.New("unknow mode:" + *mode)
 		}

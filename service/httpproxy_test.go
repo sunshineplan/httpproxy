@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/json"
@@ -56,8 +57,8 @@ func newRequest(url string, m map[string]string) *http.Request {
 	return req
 }
 
-func do(proxy proxy.Dialer, addr string, req *http.Request) (m map[string]string, err error) {
-	c, err := proxy.Dial("tcp", addr)
+func do(proxy proxy.Dialer, url string, req *http.Request) (m map[string]string, err error) {
+	c, err := proxy.Dial("tcp", strings.TrimPrefix(url, "http://"))
 	if err != nil {
 		return
 	}
@@ -119,27 +120,22 @@ func createCert() (string, string, error) {
 	return certFile.Name(), keyFile.Name(), nil
 }
 
-func TestProxy(t *testing.T) {
-	ts := httptest.NewServer(testHandler)
-	defer ts.Close()
-	addr := strings.TrimPrefix(ts.URL, "http://")
-	m := map[string]string{
-		"Hello":               "world",
-		"Proxy-Authorization": "Hello world!",
+func testProxy(t *testing.T, proxyPort, testURL string, m map[string]string) {
+	req := newRequest(testURL, m)
+	d, _ := httpproxy.NewDialer(":"+proxyPort, nil, nil, nil)
+	res, err := do(d, testURL, req)
+	if err != nil {
+		t.Fatal(err)
 	}
-	req := newRequest(ts.URL, m)
-
-	s := NewServer(NewBase("", getPort(t)))
-	go s.Run()
-	defer s.Shutdown(context.Background())
-
-	c := NewClient(NewBase("", getPort(t)), parseProxy("http://localhost:"+s.Port))
-	go c.Run()
-	defer c.Shutdown(context.Background())
-	time.Sleep(time.Second)
-
-	u, _ := url.Parse("http://localhost:" + c.Port)
-	res, err := do(httpproxy.New(u, nil), addr, req)
+	if !maps.Equal(m, res) {
+		t.Errorf("expect %v; got %v", m, res)
+	}
+	u, err := url.Parse("http://localhost:" + proxyPort)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, _ = httpproxy.FromURL(u, nil)
+	res, err = do(d, testURL, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,15 +144,34 @@ func TestProxy(t *testing.T) {
 	}
 }
 
+func TestProxy(t *testing.T) {
+	ts := httptest.NewServer(testHandler)
+	defer ts.Close()
+
+	s := NewServer(NewBase("", getPort(t)))
+	go s.Run()
+	defer s.Shutdown(context.Background())
+
+	c, _ := NewClient(NewBase("", getPort(t)), parseProxy("http://localhost:"+s.Port))
+	go c.Run()
+	defer c.Shutdown(context.Background())
+	time.Sleep(time.Second)
+
+	testProxy(t, s.Port, ts.URL, map[string]string{
+		"Hello":               "world",
+		"Proxy-Authorization": "Hello world!",
+	})
+
+	testProxy(t, c.Port, ts.URL, map[string]string{
+		"Hello":               "world",
+		"Proxy-Authorization": "Hello world!",
+	})
+}
+
 func TestTLS(t *testing.T) {
 	ts := httptest.NewServer(testHandler)
 	defer ts.Close()
-	addr := strings.TrimPrefix(ts.URL, "http://")
-	m := map[string]string{
-		"Hello":               "world",
-		"Proxy-Authorization": "Hello world!",
-	}
-	req := newRequest(ts.URL, m)
+
 	cert, privkey, err := createCert()
 	if err != nil {
 		t.Fatal(err)
@@ -170,27 +185,23 @@ func TestTLS(t *testing.T) {
 	go s.Run()
 	defer s.Shutdown(context.Background())
 
-	c := NewClient(NewBase("", getPort(t)), parseProxy("https://localhost:"+s.Port))
-	c.proxy.(*httpproxy.Dialer).InsecureSkipVerify = true
+	c, _ := NewClient(NewBase("", getPort(t)), parseProxy("https://localhost:"+s.Port))
+	c.SetTLSConfig(&tls.Config{ServerName: "localhost", InsecureSkipVerify: true})
 	go c.Run()
 	defer c.Shutdown(context.Background())
 	time.Sleep(time.Second)
 
-	u, _ := url.Parse("http://localhost:" + c.Port)
-	res, err := do(httpproxy.New(u, nil), addr, req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !maps.Equal(m, res) {
-		t.Errorf("expect %v; got %v", m, res)
-	}
+	testProxy(t, c.Port, ts.URL, map[string]string{
+		"Hello":               "world",
+		"Proxy-Authorization": "Hello world!",
+	})
 }
 
 func TestAuth(t *testing.T) {
 	ts := httptest.NewServer(testHandler)
 	defer ts.Close()
-	addr := strings.TrimPrefix(ts.URL, "http://")
-	user := account{"server", "password"}
+	serverUser := account{"server", "server_password"}
+	clientUser := account{"client", "client_password"}
 	m := map[string]string{
 		"Hello":               "world",
 		"Proxy-Authorization": "Hello world!",
@@ -198,48 +209,49 @@ func TestAuth(t *testing.T) {
 	req := newRequest(ts.URL, m)
 
 	s := NewServer(NewBase("", getPort(t)))
-	s.accounts.Store(user, &limit{0, 0, limiter.New(limiter.Inf), nil})
+	s.accounts.Store(serverUser, &limit{0, 0, limiter.New(limiter.Inf), nil})
 	go s.Run()
 	defer s.Shutdown(context.Background())
 
 	for i, testcase := range []struct {
-		client func() *Client
-		proxy  string
-		err    string
+		client    func() *Client
+		proxyAuth *httpproxy.BasicAuthentication
+		err       string
 	}{
 		{
 			func() *Client {
-				return NewClient(NewBase("", getPort(t)), parseProxy("http://localhost:"+s.Port))
+				c, _ := NewClient(NewBase("", getPort(t)), parseProxy("http://localhost:"+s.Port))
+				return c
 			},
-			"http://localhost",
+			nil,
 			"407 Proxy Authentication Required",
 		},
 		{
 			func() *Client {
-				return NewClient(NewBase("", getPort(t)), parseProxy("http://localhost:"+s.Port)).
-					SetProxyAuth(user.name, user.password)
+				c, _ := NewClient(NewBase("", getPort(t)), parseProxy("http://localhost:"+s.Port))
+				return c.SetProxyAuth(serverUser.proxyAuth())
 			},
-			"http://localhost",
+			nil,
 			"",
 		},
 		{
-			func() (c *Client) {
-				c = NewClient(NewBase("", getPort(t)), parseProxy("http://localhost:"+s.Port)).
-					SetProxyAuth(user.name, user.password)
-				c.accounts.Store(account{"client", "pwd"}, &limit{0, 0, limiter.New(limiter.Inf), nil})
-				return
+			func() *Client {
+				c, _ := NewClient(NewBase("", getPort(t)), parseProxy("http://localhost:"+s.Port))
+				c.SetProxyAuth(serverUser.proxyAuth())
+				c.accounts.Store(clientUser, &limit{0, 0, limiter.New(limiter.Inf), nil})
+				return c
 			},
-			"http://localhost",
+			nil,
 			"407 Proxy Authentication Required",
 		},
 		{
-			func() (c *Client) {
-				c = NewClient(NewBase("", getPort(t)), parseProxy("http://localhost:"+s.Port)).
-					SetProxyAuth(user.name, user.password)
-				c.accounts.Store(account{"client", "pwd"}, &limit{0, 0, limiter.New(limiter.Inf), nil})
-				return
+			func() *Client {
+				c, _ := NewClient(NewBase("", getPort(t)), parseProxy("http://localhost:"+s.Port))
+				c.SetProxyAuth(serverUser.proxyAuth())
+				c.accounts.Store(clientUser, &limit{0, 0, limiter.New(limiter.Inf), nil})
+				return c
 			},
-			"http://client:pwd@localhost",
+			&httpproxy.BasicAuthentication{Username: clientUser.name, Password: clientUser.password},
 			"",
 		},
 	} {
@@ -248,8 +260,11 @@ func TestAuth(t *testing.T) {
 		defer c.Shutdown(context.Background())
 		time.Sleep(time.Second)
 
-		u, _ := url.Parse(testcase.proxy + ":" + c.Port)
-		res, err := do(httpproxy.New(u, nil), addr, req)
+		d, _ := httpproxy.NewDialer(":"+c.Port, nil, nil, nil)
+		if testcase.proxyAuth != nil {
+			d.(*httpproxy.Dialer).AuthHeader = testcase.proxyAuth.Header()
+		}
+		res, err := do(d, ts.URL, req)
 		if testcase.err != "" {
 			if err == nil ||
 				!strings.Contains(err.Error(), testcase.err) {
@@ -257,7 +272,7 @@ func TestAuth(t *testing.T) {
 			}
 		} else {
 			if err != nil {
-				t.Error(err)
+				t.Error(i, err)
 			} else if !maps.Equal(m, res) {
 				t.Errorf("%d expect %v; got %v", i, m, res)
 			}
