@@ -108,7 +108,7 @@ error-log  = /var/log/httpproxy/error.log
 
 ```
 mode     = client
-port     = 1080
+port     = 8888
 proxy    = https://proxy:443
 username = proxy
 password = proxy

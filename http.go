@@ -5,29 +5,36 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
-	"encoding/base64"
 	"errors"
 	"io"
+	"iter"
 	"net"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"golang.org/x/net/proxy"
 )
 
 // Dialer represents a proxy dialer
 type Dialer struct {
-	u                  *url.URL
-	InsecureSkipVerify bool
+	proxyAddress string
+
+	// TLSConfig is the optional TLS configuration for HTTPS connections.
+	TLSConfig *tls.Config
+
 	// ProxyDial specifies the optional dial function for
 	// establishing the transport connection.
 	ProxyDial func(context.Context, string, string) (net.Conn, error)
+
+	// AuthHeader contains authentication information for the proxy.
+	AuthHeader iter.Seq2[string, string]
 }
 
-// New creates a new proxy Dialer
-func New(u *url.URL, forward proxy.Dialer) proxy.Dialer {
-	d := &Dialer{u: u}
+// NewDialer returns a Dialer that makes HTTP connections to the given
+// address with an optional username and password.
+// If tlsConfig is provided, the Dialer will make HTTPS connecitons.
+func NewDialer(address string, tlsConfig *tls.Config, auth *proxy.Auth, forward proxy.Dialer) (proxy.Dialer, error) {
+	d := &Dialer{proxyAddress: address, TLSConfig: tlsConfig}
 	if forward != nil {
 		if f, ok := forward.(proxy.ContextDialer); ok {
 			d.ProxyDial = func(ctx context.Context, network string, address string) (net.Conn, error) {
@@ -39,7 +46,44 @@ func New(u *url.URL, forward proxy.Dialer) proxy.Dialer {
 			}
 		}
 	}
-	return d
+	if auth != nil {
+		ba := BasicAuthentication{
+			Username: auth.User,
+			Password: auth.Password,
+		}
+		d.AuthHeader = ba.Header()
+	}
+	return d, nil
+}
+
+// FromURL returns a [proxy.Dialer] given a URL specification and an
+// underlying Dialer for it to make network requests.
+func FromURL(u *url.URL, forward proxy.Dialer) (proxy.Dialer, error) {
+	var config *tls.Config
+	switch u.Scheme {
+	case "http":
+	case "https":
+		config = &tls.Config{ServerName: u.Hostname()}
+	default:
+		return nil, errors.New("httpproxy: unsupported scheme: " + u.Scheme)
+	}
+	port := u.Port()
+	if port == "" {
+		if config != nil {
+			port = "443"
+		} else {
+			port = "80"
+		}
+	}
+	var auth *proxy.Auth
+	if u.User != nil {
+		auth = new(proxy.Auth)
+		auth.User = u.User.Username()
+		if p, ok := u.User.Password(); ok {
+			auth.Password = p
+		}
+	}
+	return NewDialer(net.JoinHostPort(u.Hostname(), port), config, auth, forward)
 }
 
 // connect establishes a connection to the proxy server
@@ -50,9 +94,10 @@ func (d *Dialer) connect(c net.Conn, network, address string) error {
 		return errors.New("network not implemented")
 	}
 	header := make(http.Header)
-	if d.u.User != nil {
-		password, _ := d.u.User.Password()
-		header.Set("Proxy-Authorization", "Basic "+basicAuth(d.u.User.Username(), password))
+	if d.AuthHeader != nil {
+		for k, v := range d.AuthHeader {
+			header.Set(k, v)
+		}
 	}
 	req := &http.Request{
 		Method: "CONNECT",
@@ -72,13 +117,16 @@ func (d *Dialer) connect(c net.Conn, network, address string) error {
 	if resp.StatusCode != http.StatusOK {
 		c.Close()
 		defer resp.Body.Close()
-		b, _ := io.ReadAll(resp.Body)
-		return errors.New(resp.Status + " : " + string(b))
+		status := resp.Status
+		if b, _ := io.ReadAll(resp.Body); len(b) > 0 {
+			status += " : " + string(b)
+		}
+		return errors.New(status)
 	}
 	return nil
 }
 
-// Dial connects to the address on the named network using the proxy
+// Dial connects to the address on the named network using the proxy.
 func (d *Dialer) Dial(network, address string) (conn net.Conn, err error) {
 	switch network {
 	case "tcp", "tcp6", "tcp4":
@@ -86,16 +134,15 @@ func (d *Dialer) Dial(network, address string) (conn net.Conn, err error) {
 		return nil, errors.New("network not implemented")
 	}
 	if d.ProxyDial != nil {
-		conn, err = d.ProxyDial(context.Background(), "tcp", d.u.Host)
+		conn, err = d.ProxyDial(context.Background(), "tcp", d.proxyAddress)
 	} else {
-		conn, err = net.Dial("tcp", d.u.Host)
+		conn, err = net.Dial("tcp", d.proxyAddress)
 	}
 	if err != nil {
 		return
 	}
-	if d.u.Scheme == "https" {
-		hostname, _, _ := strings.Cut(d.u.Host, ":")
-		conn = tls.Client(conn, &tls.Config{ServerName: hostname, InsecureSkipVerify: d.InsecureSkipVerify})
+	if d.TLSConfig != nil {
+		conn = tls.Client(conn, d.TLSConfig)
 	}
 	if err = d.connect(conn, network, address); err != nil {
 		conn.Close()
@@ -104,7 +151,8 @@ func (d *Dialer) Dial(network, address string) (conn net.Conn, err error) {
 	return
 }
 
-// DialContext connects to the address on the named network using the proxy with the provided context
+// DialContext connects to the address on the named network using the
+// proxy with the provided context.
 func (d *Dialer) DialContext(ctx context.Context, network, address string) (conn net.Conn, err error) {
 	switch network {
 	case "tcp", "tcp6", "tcp4":
@@ -112,10 +160,10 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (conn
 		return nil, errors.New("network not implemented")
 	}
 	if d.ProxyDial != nil {
-		conn, err = d.ProxyDial(ctx, "tcp", d.u.Host)
+		conn, err = d.ProxyDial(ctx, "tcp", d.proxyAddress)
 	} else {
 		var dd net.Dialer
-		conn, err = dd.DialContext(ctx, "tcp", d.u.Host)
+		conn, err = dd.DialContext(ctx, "tcp", d.proxyAddress)
 	}
 	if err != nil {
 		return
@@ -125,11 +173,6 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (conn
 		return nil, err
 	}
 	return
-}
-
-func basicAuth(username, password string) string {
-	auth := username + ":" + password
-	return base64.StdEncoding.EncodeToString([]byte(auth))
 }
 
 func dialContext(ctx context.Context, d proxy.Dialer, network, address string) (conn net.Conn, err error) {

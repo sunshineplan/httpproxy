@@ -7,10 +7,15 @@ import (
 	"github.com/sunshineplan/limiter"
 	"github.com/sunshineplan/utils/cache"
 	"github.com/sunshineplan/utils/txt"
+	"golang.org/x/net/proxy"
 )
 
 type account struct {
 	name, password string
+}
+
+func (a account) proxyAuth() *proxy.Auth {
+	return &proxy.Auth{User: a.name, Password: a.password}
 }
 
 func parseAccount(s string) (account, error) {

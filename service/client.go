@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"crypto/tls"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 
@@ -17,15 +19,48 @@ type Client struct {
 	proxy proxy.Dialer
 }
 
-func NewClient(base *Base, u *url.URL) *Client {
-	c := &Client{Base: base, u: u, proxy: httpproxy.New(u, nil)}
+func init() {
+	proxy.RegisterDialerType("http", httpproxy.FromURL)
+	proxy.RegisterDialerType("https", httpproxy.FromURL)
+}
+
+func NewClient(base *Base, u *url.URL) (*Client, error) {
+	d, err := proxy.FromURL(u, nil)
+	if err != nil {
+		return nil, err
+	}
+	c := &Client{Base: base, u: u, proxy: d}
 	c.Base.Handler = http.HandlerFunc(c.Handler)
+	return c, nil
+}
+
+func (c *Client) SetProxyAuth(auth *proxy.Auth) *Client {
+	if auth != nil {
+		c.u.User = url.UserPassword(auth.User, auth.Password)
+	} else {
+		c.u.User = nil
+	}
+	if d, ok := c.proxy.(*httpproxy.Dialer); ok {
+		if auth != nil {
+			ba := httpproxy.BasicAuthentication{Username: auth.User, Password: auth.Password}
+			d.AuthHeader = ba.Header()
+		} else {
+			d.AuthHeader = nil
+		}
+	} else if c.u.Scheme == "socks5" || c.u.Scheme == "socks5h" {
+		addr := c.u.Hostname()
+		port := c.u.Port()
+		if port == "" {
+			port = "1080"
+		}
+		c.proxy, _ = proxy.SOCKS5("tcp", net.JoinHostPort(addr, port), auth, nil)
+	}
 	return c
 }
 
-func (c *Client) SetProxyAuth(username, password string) *Client {
-	if username != "" && password != "" {
-		c.u.User = url.UserPassword(username, password)
+func (c *Client) SetTLSConfig(config *tls.Config) *Client {
+	if d, ok := c.proxy.(*httpproxy.Dialer); ok {
+		d.TLSConfig = config
 	}
 	return c
 }
@@ -35,7 +70,7 @@ func (c *Client) HTTP(user string, lim *limiter.Limiter, w http.ResponseWriter, 
 	if port == "" {
 		port = "80"
 	}
-	conn, err := c.proxy.Dial("tcp", r.URL.Hostname()+":"+port)
+	conn, err := c.proxy.Dial("tcp", net.JoinHostPort(r.URL.Hostname(), port))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
