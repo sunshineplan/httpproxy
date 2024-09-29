@@ -7,11 +7,11 @@ import (
 	"crypto/tls"
 	"errors"
 	"io"
-	"iter"
 	"net"
 	"net/http"
 	"net/url"
 
+	"github.com/sunshineplan/httpproxy/auth"
 	"golang.org/x/net/proxy"
 )
 
@@ -26,14 +26,14 @@ type Dialer struct {
 	// establishing the transport connection.
 	ProxyDial func(context.Context, string, string) (net.Conn, error)
 
-	// AuthHeader contains authentication information for the proxy.
-	AuthHeader iter.Seq2[string, string]
+	// Auth contains authentication information for the proxy.
+	Auth auth.Authorization
 }
 
 // NewDialer returns a Dialer that makes HTTP connections to the given
 // address with an optional username and password.
 // If tlsConfig is provided, the Dialer will make HTTPS connecitons.
-func NewDialer(address string, tlsConfig *tls.Config, auth *proxy.Auth, forward proxy.Dialer) (proxy.Dialer, error) {
+func NewDialer(address string, tlsConfig *tls.Config, pa *proxy.Auth, forward proxy.Dialer) (proxy.Dialer, error) {
 	d := &Dialer{proxyAddress: address, TLSConfig: tlsConfig}
 	if forward != nil {
 		if f, ok := forward.(proxy.ContextDialer); ok {
@@ -46,12 +46,11 @@ func NewDialer(address string, tlsConfig *tls.Config, auth *proxy.Auth, forward 
 			}
 		}
 	}
-	if auth != nil {
-		ba := BasicAuthentication{
-			Username: auth.User,
-			Password: auth.Password,
+	if pa != nil {
+		d.Auth = auth.Basic{
+			Username: pa.User,
+			Password: pa.Password,
 		}
-		d.AuthHeader = ba.Header()
 	}
 	return d, nil
 }
@@ -93,17 +92,14 @@ func (d *Dialer) connect(c net.Conn, network, address string) error {
 	default:
 		return errors.New("network not implemented")
 	}
-	header := make(http.Header)
-	if d.AuthHeader != nil {
-		for k, v := range d.AuthHeader {
-			header.Set(k, v)
-		}
-	}
 	req := &http.Request{
 		Method: "CONNECT",
 		URL:    &url.URL{Opaque: address},
 		Host:   address,
-		Header: header,
+		Header: make(http.Header),
+	}
+	if d.Auth != nil {
+		d.Auth.Authorization(req)
 	}
 	if err := req.Write(c); err != nil {
 		c.Close()

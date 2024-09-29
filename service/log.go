@@ -11,7 +11,7 @@ var (
 	errorLogger  = log.Default()
 )
 
-func initLogger(base *Base) {
+func initLogger() {
 	if *accesslog != "" || !*debug {
 		accessLogger = log.New(*accesslog, "", log.LstdFlags)
 	}
@@ -26,6 +26,5 @@ func initLogger(base *Base) {
 		accessLogger.Debug("accesslog: " + *accesslog)
 		errorLogger.Debug("errorlog: " + *errorlog)
 	}
-	base.ErrorLog = errorLogger.Logger
 	svc.Logger = accessLogger
 }

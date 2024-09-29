@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunshineplan/httpproxy/auth"
 	"github.com/sunshineplan/utils/cache"
 	"github.com/sunshineplan/utils/counter"
 	"github.com/sunshineplan/utils/scheduler"
@@ -105,9 +106,9 @@ func saveRecord(base *Base) {
 	zw := gzip.NewWriter(f)
 	fmt.Fprintln(zw, time.Now().Format(timeFormat))
 
-	base.accounts.Range(func(a account, _ *limit) bool {
-		if v, ok := recordMap.Load(a.name); ok {
-			fmt.Fprintf(zw, "%s:%d:%d:%d\n", a.name, v.today.Load(), v.monthly.Load(), v.total.Load())
+	base.accounts.Range(func(a auth.Basic, _ *limit) bool {
+		if v, ok := recordMap.Load(a.Username); ok {
+			fmt.Fprintf(zw, "%s:%d:%d:%d\n", a.Username, v.today.Load(), v.monthly.Load(), v.total.Load())
 		}
 		return true
 	})

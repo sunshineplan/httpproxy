@@ -1,27 +1,24 @@
 package main
 
 import (
-	"encoding/base64"
 	"net/http"
-	"strings"
 
+	"github.com/sunshineplan/httpproxy/auth"
 	"github.com/sunshineplan/limiter"
 	"github.com/sunshineplan/utils/cache"
 	"github.com/sunshineplan/utils/httpsvr"
 )
 
-var base *Base
-
 type Base struct {
 	*httpsvr.Server
-	accounts  *cache.Map[account, *limit]
+	accounts  *cache.Map[auth.Basic, *limit]
 	whitelist *cache.Value[[]allow]
 }
 
 func NewBase(host, port string) *Base {
 	base := &Base{
 		Server:    httpsvr.New(),
-		accounts:  cache.NewMap[account, *limit](),
+		accounts:  cache.NewMap[auth.Basic, *limit](),
 		whitelist: cache.NewValue[[]allow](),
 	}
 	base.Host = host
@@ -31,7 +28,7 @@ func NewBase(host, port string) *Base {
 
 func (base *Base) hasAccount() bool {
 	var found bool
-	base.accounts.Range(func(a account, l *limit) bool {
+	base.accounts.Range(func(a auth.Basic, l *limit) bool {
 		found = true
 		return false
 	})
@@ -54,12 +51,12 @@ func (base *Base) isAllow(remoteAddr string) bool {
 	return false
 }
 
-func (base *Base) checkAccount(user, pass string) (found bool, exceeded bool, limit *limit) {
-	if limit, ok := base.accounts.Load(account{user, pass}); !ok {
+func (base *Base) checkAccount(auth auth.Basic) (found bool, exceeded bool, limit *limit) {
+	if limit, ok := base.accounts.Load(auth); !ok {
 		return false, false, nil
 	} else if limit.daily == 0 && limit.monthly == 0 {
 		return true, false, limit
-	} else if v, ok := recordMap.Load(user); ok {
+	} else if v, ok := recordMap.Load(auth.Username); ok {
 		return true, limit.isExceeded(v), limit
 	} else {
 		return true, false, limit
@@ -73,44 +70,27 @@ func (base *Base) Auth(w http.ResponseWriter, r *http.Request) (string, *limiter
 	case hasWhitelist && base.isAllow(r.RemoteAddr):
 		return "whitelist", limiter.New(limiter.Inf), true
 	case hasAccount:
-		user, pass, ok := parseBasicAuth(r.Header.Get("Proxy-Authorization"))
+		auth, ok := auth.ParseBasic(r)
 		if !ok {
 			authRequired.Do(func() { accessLogger.Printf("%s Proxy Authentication Required", r.RemoteAddr) })
 			w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
 			http.Error(w, "", http.StatusProxyAuthRequired)
 			return "", nil, false
-		} else if found, exceeded, limit := base.checkAccount(user, pass); !found {
+		} else if found, exceeded, limit := base.checkAccount(auth); !found {
 			authFailed.Do(func() { errorLogger.Printf("%s Proxy Authentication Failed", r.RemoteAddr) })
 			w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
 			http.Error(w, "", http.StatusProxyAuthRequired)
 			return "", nil, false
 		} else if found && exceeded {
-			limit.st.Do(func() { accessLogger.Printf("%s[%s] Exceeded traffic limit", r.RemoteAddr, user) })
+			limit.st.Do(func() { accessLogger.Printf("%s[%s] Exceeded traffic limit", r.RemoteAddr, auth.Username) })
 			http.Error(w, "exceeded traffic limit", http.StatusForbidden)
 			return "", nil, false
 		} else {
-			return user, limit.speed, true
+			return auth.Username, limit.speed, true
 		}
 	default:
 		notAllow.Do(func() { accessLogger.Printf("%s not allow", r.RemoteAddr) })
 		http.Error(w, "access not allow", http.StatusForbidden)
 		return "", nil, false
 	}
-}
-
-func parseBasicAuth(auth string) (username, password string, ok bool) {
-	const prefix = "Basic "
-	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
-		return
-	}
-	c, err := base64.StdEncoding.DecodeString(auth[len(prefix):])
-	if err != nil {
-		return
-	}
-	cs := string(c)
-	s := strings.IndexByte(cs, ':')
-	if s < 0 {
-		return
-	}
-	return cs[:s], cs[s+1:], true
 }
