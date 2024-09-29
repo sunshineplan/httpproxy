@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/sunshineplan/httpproxy"
+	"github.com/sunshineplan/httpproxy/auth"
 	"github.com/sunshineplan/limiter"
 	"golang.org/x/net/proxy"
 )
@@ -200,8 +201,8 @@ func TestTLS(t *testing.T) {
 func TestAuth(t *testing.T) {
 	ts := httptest.NewServer(testHandler)
 	defer ts.Close()
-	serverUser := account{"server", "server_password"}
-	clientUser := account{"client", "client_password"}
+	serverUser := auth.Basic{Username: "server", Password: "server_password"}
+	clientUser := auth.Basic{Username: "client", Password: "client_password"}
 	m := map[string]string{
 		"Hello":               "world",
 		"Proxy-Authorization": "Hello world!",
@@ -215,7 +216,7 @@ func TestAuth(t *testing.T) {
 
 	for i, testcase := range []struct {
 		client    func() *Client
-		proxyAuth *httpproxy.BasicAuthentication
+		proxyAuth auth.Authorization
 		err       string
 	}{
 		{
@@ -229,7 +230,7 @@ func TestAuth(t *testing.T) {
 		{
 			func() *Client {
 				c, _ := NewClient(NewBase("", getPort(t)), parseProxy("http://localhost:"+s.Port))
-				return c.SetProxyAuth(serverUser.proxyAuth())
+				return c.SetProxyAuth(&proxy.Auth{User: serverUser.Username, Password: serverUser.Password})
 			},
 			nil,
 			"",
@@ -237,7 +238,7 @@ func TestAuth(t *testing.T) {
 		{
 			func() *Client {
 				c, _ := NewClient(NewBase("", getPort(t)), parseProxy("http://localhost:"+s.Port))
-				c.SetProxyAuth(serverUser.proxyAuth())
+				c.SetProxyAuth(&proxy.Auth{User: serverUser.Username, Password: serverUser.Password})
 				c.accounts.Store(clientUser, &limit{0, 0, limiter.New(limiter.Inf), nil})
 				return c
 			},
@@ -247,11 +248,11 @@ func TestAuth(t *testing.T) {
 		{
 			func() *Client {
 				c, _ := NewClient(NewBase("", getPort(t)), parseProxy("http://localhost:"+s.Port))
-				c.SetProxyAuth(serverUser.proxyAuth())
+				c.SetProxyAuth(&proxy.Auth{User: serverUser.Username, Password: serverUser.Password})
 				c.accounts.Store(clientUser, &limit{0, 0, limiter.New(limiter.Inf), nil})
 				return c
 			},
-			&httpproxy.BasicAuthentication{Username: clientUser.name, Password: clientUser.password},
+			auth.Basic{Username: clientUser.Username, Password: clientUser.Password},
 			"",
 		},
 	} {
@@ -262,7 +263,7 @@ func TestAuth(t *testing.T) {
 
 		d, _ := httpproxy.NewDialer(":"+c.Port, nil, nil, nil)
 		if testcase.proxyAuth != nil {
-			d.(*httpproxy.Dialer).AuthHeader = testcase.proxyAuth.Header()
+			d.(*httpproxy.Dialer).Auth = testcase.proxyAuth
 		}
 		res, err := do(d, ts.URL, req)
 		if testcase.err != "" {

@@ -11,7 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunshineplan/httpproxy/auth"
 	"github.com/sunshineplan/utils/cache"
+	"github.com/sunshineplan/utils/httpsvr"
 	"github.com/sunshineplan/utils/pool"
 	"github.com/sunshineplan/utils/scheduler"
 	"github.com/sunshineplan/utils/unit"
@@ -45,14 +47,14 @@ func getUsage(user string) *usage {
 	return nil
 }
 
-func writeUsages(accounts *cache.Map[account, *limit], w io.Writer) {
+func writeUsages(accounts *cache.Map[auth.Basic, *limit], w io.Writer) {
 	var res []*usage
 	if usage := getUsage("anonymous"); usage != nil {
 		res = append(res, usage)
 	}
 
-	accounts.Range(func(a account, _ *limit) bool {
-		if usage := getUsage(a.name); usage != nil {
+	accounts.Range(func(a auth.Basic, _ *limit) bool {
+		if usage := getUsage(a.Username); usage != nil {
 			res = append(res, usage)
 		}
 		return true
@@ -96,7 +98,7 @@ func writeUsages(accounts *cache.Map[account, *limit], w io.Writer) {
 
 var start time.Time
 
-func saveStatus(base *Base) {
+func saveStatus(base *Base, servers []*httpsvr.Server) {
 	f, err := os.Create(*status)
 	if err != nil {
 		errorLogger.Print(err)
@@ -108,12 +110,17 @@ func saveStatus(base *Base) {
 	fmt.Fprintln(f, "Last Update:", time.Now().Format("2006-01-02 15:04:05"))
 	fmt.Fprintln(f)
 	fmt.Fprintln(f, "Throughput:")
-	fmt.Fprintf(f, "Send: %s   Receive: %s\n", unit.ByteSize(base.WriteCount()), unit.ByteSize(base.ReadCount()))
+	var send, receive int64
+	for _, i := range servers {
+		send += i.WriteCount()
+		receive += i.ReadCount()
+	}
+	fmt.Fprintf(f, "Send: %s   Receive: %s\n", unit.ByteSize(send), unit.ByteSize(receive))
 	fmt.Fprintln(f)
 	writeUsages(base.accounts, f)
 }
 
-func initStatus(base *Base) {
+func initStatus(base *Base, servers []*httpsvr.Server) {
 	accessLogger.Debug("status: " + *status)
 	if _, err := os.Stat(*status); err == nil {
 		if err := keepStatus(0); err != nil {
@@ -126,8 +133,8 @@ func initStatus(base *Base) {
 	}
 
 	start = time.Now()
-	saveStatus(base)
-	scheduler.NewScheduler().At(scheduler.AtSecond(0)).Do(func(_ time.Time) { saveStatus(base) })
+	saveStatus(base, servers)
+	scheduler.NewScheduler().At(scheduler.AtSecond(0)).Do(func(_ time.Time) { saveStatus(base, servers) })
 }
 
 func keepStatus(n int) (err error) {

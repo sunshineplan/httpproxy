@@ -71,6 +71,7 @@ var (
 	proxyAddr = flag.String("proxy", "", "Proxy address")
 	username  = flag.String("username", "", "Username")
 	password  = flag.String("password", "", "Password")
+	autoproxy = flag.String("autoproxy", "", "Auto proxy listening port")
 )
 
 const clientFlag = `
@@ -81,6 +82,8 @@ client side:
     	Username for Basic Authentication
   --password <string>
     	Password for Basic Authentication
+  --autoproxy <string>
+    	Auto proxy listening port
 `
 
 var svc = service.New()
@@ -120,8 +123,7 @@ func main() {
 		*status = filepath.Join(filepath.Dir(self), "status")
 	}
 
-	base = NewBase(*host, *port)
-	initLogger(base)
+	initLogger()
 
 	if err := svc.ParseAndRun(flag.Args()); err != nil {
 		svc.Fatal(err)

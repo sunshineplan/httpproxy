@@ -9,7 +9,9 @@ import (
 	"net/url"
 
 	"github.com/sunshineplan/httpproxy"
+	"github.com/sunshineplan/httpproxy/auth"
 	"github.com/sunshineplan/limiter"
+	"github.com/sunshineplan/utils/httpsvr"
 	"golang.org/x/net/proxy"
 )
 
@@ -17,6 +19,8 @@ type Client struct {
 	*Base
 	u     *url.URL
 	proxy proxy.Dialer
+
+	autoproxy *Autoproxy
 }
 
 func init() {
@@ -30,22 +34,21 @@ func NewClient(base *Base, u *url.URL) (*Client, error) {
 		return nil, err
 	}
 	c := &Client{Base: base, u: u, proxy: d}
-	c.Base.Handler = http.HandlerFunc(c.Handler)
+	c.Base.Handler = c.Handler(false)
 	return c, nil
 }
 
-func (c *Client) SetProxyAuth(auth *proxy.Auth) *Client {
-	if auth != nil {
-		c.u.User = url.UserPassword(auth.User, auth.Password)
+func (c *Client) SetProxyAuth(pa *proxy.Auth) *Client {
+	if pa != nil {
+		c.u.User = url.UserPassword(pa.User, pa.Password)
 	} else {
 		c.u.User = nil
 	}
 	if d, ok := c.proxy.(*httpproxy.Dialer); ok {
-		if auth != nil {
-			ba := httpproxy.BasicAuthentication{Username: auth.User, Password: auth.Password}
-			d.AuthHeader = ba.Header()
+		if pa != nil {
+			d.Auth = auth.Basic{Username: pa.User, Password: pa.Password}
 		} else {
-			d.AuthHeader = nil
+			d.Auth = nil
 		}
 	} else if c.u.Scheme == "socks5" || c.u.Scheme == "socks5h" {
 		addr := c.u.Hostname()
@@ -53,7 +56,7 @@ func (c *Client) SetProxyAuth(auth *proxy.Auth) *Client {
 		if port == "" {
 			port = "1080"
 		}
-		c.proxy, _ = proxy.SOCKS5("tcp", net.JoinHostPort(addr, port), auth, nil)
+		c.proxy, _ = proxy.SOCKS5("tcp", net.JoinHostPort(addr, port), pa, nil)
 	}
 	return c
 }
@@ -65,12 +68,40 @@ func (c *Client) SetTLSConfig(config *tls.Config) *Client {
 	return c
 }
 
-func (c *Client) HTTP(user string, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request) {
+func (c *Client) SetAutoproxy(port string, autoproxy *proxy.PerHost) *Client {
+	server := httpsvr.New()
+	server.Handler = c.Handler(true)
+	server.Host = c.Base.Host
+	server.Port = port
+	c.autoproxy = &Autoproxy{Server: server, PerHost: autoproxy}
+	return c
+}
+
+func (c *Client) Run() error {
+	if c.autoproxy != nil {
+		go func() {
+			if err := c.autoproxy.Run(); err != nil {
+				c.Println("failed to run autoproxy:", err)
+			}
+		}()
+	}
+	return c.Base.Run()
+}
+
+func (c *Client) HTTP(user string, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request, autoproxy bool) {
 	port := r.URL.Port()
 	if port == "" {
 		port = "80"
 	}
-	conn, err := c.proxy.Dial("tcp", net.JoinHostPort(r.URL.Hostname(), port))
+	var conn net.Conn
+	var err error
+	if autoproxy {
+		c.autoproxy.RLock()
+		conn, err = c.autoproxy.Dial("tcp", net.JoinHostPort(r.URL.Hostname(), port))
+		c.autoproxy.RUnlock()
+	} else {
+		conn, err = c.proxy.Dial("tcp", net.JoinHostPort(r.URL.Hostname(), port))
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
@@ -100,8 +131,16 @@ func (c *Client) HTTP(user string, lim *limiter.Limiter, w http.ResponseWriter, 
 	io.Copy(count(user, lim.Writer(w)), resp.Body)
 }
 
-func (c *Client) HTTPS(user string, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request) {
-	dest_conn, err := c.proxy.Dial("tcp", r.Host)
+func (c *Client) HTTPS(user string, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request, autoproxy bool) {
+	var dest_conn net.Conn
+	var err error
+	if autoproxy {
+		c.autoproxy.RLock()
+		dest_conn, err = c.autoproxy.Dial("tcp", r.Host)
+		c.autoproxy.RUnlock()
+	} else {
+		dest_conn, err = c.proxy.Dial("tcp", r.Host)
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
@@ -125,15 +164,17 @@ func (c *Client) HTTPS(user string, lim *limiter.Limiter, w http.ResponseWriter,
 	go transfer(client_conn, dest_conn, user, lim)
 }
 
-func (c *Client) Handler(w http.ResponseWriter, r *http.Request) {
-	user, lim, ok := c.Auth(w, r)
-	if !ok {
-		return
-	}
-	accessLogger.Printf("[C]%s[%s] %s %s", r.RemoteAddr, user, r.Method, r.URL)
-	if r.Method == http.MethodConnect {
-		c.HTTPS(user, lim, w, r)
-	} else {
-		c.HTTP(user, lim, w, r)
+func (c *Client) Handler(autoproxy bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, lim, ok := c.Auth(w, r)
+		if !ok {
+			return
+		}
+		accessLogger.Printf("[C]%s[%s] %s %s", r.RemoteAddr, user, r.Method, r.URL)
+		if r.Method == http.MethodConnect {
+			c.HTTPS(user, lim, w, r, autoproxy)
+		} else {
+			c.HTTP(user, lim, w, r, autoproxy)
+		}
 	}
 }

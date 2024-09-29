@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sunshineplan/utils/httpsvr"
 	"golang.org/x/net/proxy"
 )
 
@@ -20,6 +21,8 @@ type Runner interface {
 }
 
 func run() error {
+	base := NewBase(*host, *port)
+	base.ErrorLog = errorLogger.Logger
 	var runner Runner
 	switch mode := strings.ToLower(*mode); mode {
 	case "server":
@@ -42,6 +45,9 @@ func run() error {
 		if *username != "" || *password != "" {
 			c.SetProxyAuth(&proxy.Auth{User: *username, Password: *password})
 		}
+		if *autoproxy != "" {
+			c.SetAutoproxy(*autoproxy, initAutoproxy(c))
+		}
 		runner = c
 	default:
 		return errors.New("unknow mode: " + mode)
@@ -49,15 +55,16 @@ func run() error {
 	base.accounts = initSecrets(*secrets)
 	base.whitelist = initWhitelist(*whitelist)
 	initRecord(base)
-	initStatus(base)
+	initStatus(base, []*httpsvr.Server{base.Server})
 	defer func() {
 		saveRecord(base)
-		saveStatus(base)
+		saveStatus(base, []*httpsvr.Server{base.Server})
 	}()
 	return runner.Run()
 }
 
 func test() error {
+	base := NewBase(*host, *port)
 	if base.Port == "" {
 		switch strings.ToLower(*mode) {
 		case "server":
