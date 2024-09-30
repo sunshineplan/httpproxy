@@ -30,11 +30,13 @@ var last string
 var errNoUpdateAvailable = errors.New("no update available")
 
 func parseAutoproxy(c *Client) (*proxy.PerHost, error) {
+	accessLogger.Print("check autoproxy")
 	resp, err := http.Get(autoproxyURL)
 	if err != nil {
-		if t, ok := http.DefaultClient.Transport.(*http.Transport); ok {
+		if t, ok := http.DefaultTransport.(*http.Transport); ok {
 			t.Proxy = http.ProxyURL(c.u)
 			if resp, err = http.Get(autoproxyURL); err != nil {
+				errorLogger.Print(err)
 				return nil, err
 			}
 		} else {
@@ -65,6 +67,7 @@ func parseAutoproxy(c *Client) (*proxy.PerHost, error) {
 			perHost.AddHost(strings.TrimPrefix(i, "full:"))
 		}
 	}
+	last = string(b)
 	return perHost, nil
 }
 
@@ -75,12 +78,14 @@ func initAutoproxy(c *Client) *proxy.PerHost {
 		errorLogger.Print(err)
 		return nil
 	}
-	scheduler.NewScheduler().At(scheduler.AtHour(0)).Do(func(_ time.Time) {
+	scheduler.NewScheduler().At(scheduler.AtHour(12)).Do(func(_ time.Time) {
 		c.autoproxy.Lock()
 		defer c.autoproxy.Unlock()
 		p, err := parseAutoproxy(c)
 		if err != nil {
-			if err != errNoUpdateAvailable {
+			if err == errNoUpdateAvailable {
+				accessLogger.Println("autoproxy", err)
+			} else {
 				errorLogger.Print(err)
 			}
 			return
@@ -102,12 +107,12 @@ func hostname(address string) string {
 }
 
 func (d *dialerLogger) Dial(network, address string) (net.Conn, error) {
-	accessLogger.Printf("[A] %s %s", d.name, hostname(address))
+	accessLogger.Printf("[%s] %s", d.name, hostname(address))
 	return d.dialer.Dial(network, address)
 }
 
 func (d *dialerLogger) DialContext(ctx context.Context, network, address string) (conn net.Conn, err error) {
-	accessLogger.Printf("[A] %s %s", d.name, hostname(address))
+	accessLogger.Printf("[%s] %s", d.name, hostname(address))
 	if f, ok := d.dialer.(proxy.ContextDialer); ok {
 		return f.DialContext(ctx, network, address)
 	} else {
