@@ -12,11 +12,16 @@ type Basic struct {
 	Password string
 }
 
-// Authorization returns a function that yields the Proxy-Authorization header with Base64 encoded credentials.
+// Authorization sets the Proxy-Authorization header in the given HTTP request
+// using the Basic authentication scheme with base64-encoded credentials.
 func (a Basic) Authorization(req *http.Request) {
 	req.Header.Set("Proxy-Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte((a.Username+":"+a.Password))))
 }
 
+// ParseBasic extracts and decodes the Basic authentication credentials from the
+// Proxy-Authorization header of the given HTTP request.
+// It returns the decoded Basic struct and a boolean indicating whether valid
+// credentials were found.
 func ParseBasic(req *http.Request) (basic Basic, found bool) {
 	auth := req.Header.Get("Proxy-Authorization")
 	const prefix = "Basic "
