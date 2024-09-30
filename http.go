@@ -93,7 +93,7 @@ func (d *Dialer) connect(c net.Conn, network, address string) error {
 		return errors.New("network not implemented")
 	}
 	req := &http.Request{
-		Method: "CONNECT",
+		Method: http.MethodConnect,
 		URL:    &url.URL{Opaque: address},
 		Host:   address,
 		Header: make(http.Header),
