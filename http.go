@@ -86,16 +86,11 @@ func FromURL(u *url.URL, forward proxy.Dialer) (proxy.Dialer, error) {
 }
 
 // connect establishes a connection to the proxy server
-func (d *Dialer) connect(c net.Conn, network, address string) error {
-	switch network {
-	case "tcp", "tcp6", "tcp4":
-	default:
-		return errors.New("network not implemented")
-	}
+func (d *Dialer) connect(c net.Conn, host string) error {
 	req := &http.Request{
 		Method: http.MethodConnect,
-		URL:    &url.URL{Opaque: address},
-		Host:   address,
+		URL:    &url.URL{Opaque: host},
+		Host:   host,
 		Header: make(http.Header),
 	}
 	if d.Auth != nil {
@@ -140,7 +135,7 @@ func (d *Dialer) Dial(network, address string) (conn net.Conn, err error) {
 	if d.TLSConfig != nil {
 		conn = tls.Client(conn, d.TLSConfig)
 	}
-	if err = d.connect(conn, network, address); err != nil {
+	if err = d.connect(conn, address); err != nil {
 		conn.Close()
 		return nil, err
 	}
@@ -164,7 +159,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (conn
 	if err != nil {
 		return
 	}
-	if err = d.connect(conn, network, address); err != nil {
+	if err = d.connect(conn, address); err != nil {
 		conn.Close()
 		return nil, err
 	}
