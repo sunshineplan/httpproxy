@@ -170,7 +170,11 @@ func (c *Client) Handler(autoproxy bool) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		accessLogger.Printf("[C]%s[%s] %s %s", r.RemoteAddr, user, r.Method, r.URL)
+		tag := "C"
+		if autoproxy {
+			tag = "A"
+		}
+		accessLogger.Printf("[%s]%s[%s] %s %s", tag, r.RemoteAddr, user, r.Method, r.URL)
 		if r.Method == http.MethodConnect {
 			c.HTTPS(user, lim, w, r, autoproxy)
 		} else {
