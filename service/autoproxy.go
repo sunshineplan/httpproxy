@@ -31,17 +31,30 @@ var errNoUpdateAvailable = errors.New("no update available")
 
 func parseAutoproxy(c *Client) (*proxy.PerHost, error) {
 	accessLogger.Print("check autoproxy")
-	resp, err := http.Get(autoproxyURL)
-	if err != nil {
-		if t, ok := http.DefaultTransport.(*http.Transport); ok {
-			t.Proxy = http.ProxyURL(c.u)
-			if resp, err = http.Get(autoproxyURL); err != nil {
-				errorLogger.Print(err)
-				return nil, err
-			}
+	ch := make(chan *http.Response, 1)
+	go func() {
+		if resp, err := http.Get(autoproxyURL); err == nil {
+			ch <- resp
 		} else {
-			return nil, err
+			errorLogger.Debug("failed to check autoproxy without using proxy", "error", err)
 		}
+	}()
+	go func() {
+		if t, ok := http.DefaultTransport.(*http.Transport); ok {
+			t = t.Clone()
+			t.Proxy = http.ProxyURL(c.u)
+			if resp, err := (&http.Client{Transport: t}).Get(autoproxyURL); err == nil {
+				ch <- resp
+			} else {
+				errorLogger.Debug("failed to check autoproxy using proxy", "error", err)
+			}
+		}
+	}()
+	var resp *http.Response
+	select {
+	case <-time.After(time.Minute):
+		return nil, errors.New("failed to check autoproxy")
+	case resp = <-ch:
 	}
 	defer resp.Body.Close()
 	b, err := io.ReadAll(resp.Body)
@@ -68,6 +81,7 @@ func parseAutoproxy(c *Client) (*proxy.PerHost, error) {
 		}
 	}
 	last = string(b)
+	accessLogger.Print("autoproxy loaded")
 	return perHost, nil
 }
 
@@ -90,7 +104,6 @@ func initAutoproxy(c *Client) *proxy.PerHost {
 			}
 			return
 		}
-		accessLogger.Print("autoproxy updated")
 		c.autoproxy.PerHost = p
 	})
 	return p

@@ -31,9 +31,11 @@ import (
 )
 
 var testHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	header := w.Header()
 	m := make(map[string]string)
-	for k := range r.Header {
+	for k, v := range r.Header {
 		m[k] = r.Header.Get(k)
+		header.Add(k, v[0])
 	}
 	b, _ := json.Marshal(m)
 	w.Write(b)
@@ -58,7 +60,7 @@ func newRequest(url string, m map[string]string) *http.Request {
 	return req
 }
 
-func do(proxy proxy.Dialer, url string, req *http.Request) (m map[string]string, err error) {
+func do(proxy proxy.Dialer, url string, req *http.Request) (resp *http.Response, m map[string]string, err error) {
 	c, err := proxy.Dial("tcp", strings.TrimPrefix(url, "http://"))
 	if err != nil {
 		return
@@ -66,7 +68,7 @@ func do(proxy proxy.Dialer, url string, req *http.Request) (m map[string]string,
 	if err = req.WriteProxy(c); err != nil {
 		return
 	}
-	resp, err := http.ReadResponse(bufio.NewReader(c), nil)
+	resp, err = http.ReadResponse(bufio.NewReader(c), nil)
 	if err != nil {
 		return
 	}
@@ -124,24 +126,34 @@ func createCert() (string, string, error) {
 func testProxy(t *testing.T, proxyPort, testURL string, m map[string]string) {
 	req := newRequest(testURL, m)
 	d, _ := httpproxy.NewDialer(":"+proxyPort, nil, nil, nil)
-	res, err := do(d, testURL, req)
+	resp, res, err := do(d, testURL, req)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !maps.Equal(m, res) {
 		t.Errorf("expect %v; got %v", m, res)
+	}
+	for k, v := range m {
+		if vv := resp.Header.Get(k); vv != v {
+			t.Errorf("expect %s %s; got %s", k, v, vv)
+		}
 	}
 	u, err := url.Parse("http://localhost:" + proxyPort)
 	if err != nil {
 		t.Fatal(err)
 	}
 	d, _ = httpproxy.FromURL(u, nil)
-	res, err = do(d, testURL, req)
+	resp, res, err = do(d, testURL, req)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !maps.Equal(m, res) {
 		t.Errorf("expect %v; got %v", m, res)
+	}
+	for k, v := range m {
+		if vv := resp.Header.Get(k); vv != v {
+			t.Errorf("expect %s %s; got %s", k, v, vv)
+		}
 	}
 }
 
@@ -265,7 +277,7 @@ func TestAuth(t *testing.T) {
 		if testcase.proxyAuth != nil {
 			d.(*httpproxy.Dialer).Auth = testcase.proxyAuth
 		}
-		res, err := do(d, ts.URL, req)
+		resp, res, err := do(d, ts.URL, req)
 		if testcase.err != "" {
 			if err == nil ||
 				!strings.Contains(err.Error(), testcase.err) {
@@ -274,8 +286,15 @@ func TestAuth(t *testing.T) {
 		} else {
 			if err != nil {
 				t.Error(i, err)
-			} else if !maps.Equal(m, res) {
-				t.Errorf("%d expect %v; got %v", i, m, res)
+			} else {
+				if !maps.Equal(m, res) {
+					t.Errorf("%d expect %v; got %v", i, m, res)
+				}
+				for k, v := range m {
+					if vv := resp.Header.Get(k); vv != v {
+						t.Errorf("expect %s %s; got %s", k, v, vv)
+					}
+				}
 			}
 		}
 	}
