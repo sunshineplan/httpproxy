@@ -69,11 +69,13 @@ func (c *Client) SetTLSConfig(config *tls.Config) *Client {
 }
 
 func (c *Client) SetAutoproxy(port string, autoproxy *proxy.PerHost) *Client {
-	server := httpsvr.New()
-	server.Handler = c.Handler(true)
-	server.Host = c.Base.Host
-	server.Port = port
-	c.autoproxy = &Autoproxy{Server: server, PerHost: autoproxy}
+	if port != "" && autoproxy != nil {
+		server := httpsvr.New()
+		server.Handler = c.Handler(true)
+		server.Host = c.Base.Host
+		server.Port = port
+		c.autoproxy = &Autoproxy{Server: server, PerHost: autoproxy}
+	}
 	return c
 }
 
