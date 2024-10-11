@@ -23,6 +23,7 @@ type Runner interface {
 func run() error {
 	base := NewBase(*host, *port)
 	base.ErrorLog = errorLogger.Logger
+	servers := []*httpsvr.Server{base.Server}
 	var runner Runner
 	switch mode := strings.ToLower(*mode); mode {
 	case "server":
@@ -47,6 +48,7 @@ func run() error {
 		}
 		if *autoproxy != "" {
 			c.SetAutoproxy(*autoproxy, initAutoproxy(c))
+			servers = append(servers, c.autoproxy.Server)
 		}
 		runner = c
 	default:
@@ -55,10 +57,10 @@ func run() error {
 	base.accounts = initSecrets(*secrets)
 	base.whitelist = initWhitelist(*whitelist)
 	initRecord(base)
-	initStatus(base, []*httpsvr.Server{base.Server})
+	initStatus(base, servers)
 	defer func() {
 		saveRecord(base)
-		saveStatus(base, []*httpsvr.Server{base.Server})
+		saveStatus(base, servers)
 	}()
 	return runner.Run()
 }

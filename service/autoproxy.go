@@ -70,14 +70,13 @@ func fetchAutoproxy(c *Client) (string, error) {
 			}
 		}
 	}()
-	var b []byte
 	select {
 	case <-time.After(time.Minute):
 		return "", errors.New("failed to check autoproxy")
-	case b = <-ch:
+	case b := <-ch:
 		accessLogger.Print("autoproxy fetched")
+		return string(b), nil
 	}
-	return string(b), nil
 }
 
 func addPerHost(p *proxy.PerHost, s string, custom bool) *proxy.PerHost {
@@ -117,14 +116,15 @@ func initAutoproxy(c *Client) *proxy.PerHost {
 	accessLogger.Debug("custom autoproxy: " + *custom)
 	customAutoproxy, err = os.ReadFile(*custom)
 	if err != nil {
-		errorLogger.Println("failed to read custom autoproxy file:", err)
+		errorLogger.Println("failed to load custom autoproxy file:", err)
 	}
 	p := parseAutoproxy(proxy.NewPerHost(
 		&dialerLogger{"direct", proxy.Direct},
 		&dialerLogger{"proxy", c.proxy},
 	), last, string(customAutoproxy))
 	go func() {
-		for range time.NewTicker(24 * time.Hour).C {
+		t := time.NewTicker(24 * time.Hour)
+		for range t.C {
 			s, err := fetchAutoproxy(c)
 			if err != nil {
 				errorLogger.Print(err)
