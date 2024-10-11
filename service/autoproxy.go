@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/sunshineplan/utils/httpsvr"
-	"github.com/sunshineplan/utils/scheduler"
 	"github.com/sunshineplan/utils/txt"
 	"golang.org/x/net/proxy"
 )
@@ -124,24 +123,26 @@ func initAutoproxy(c *Client) *proxy.PerHost {
 		&dialerLogger{"direct", proxy.Direct},
 		&dialerLogger{"proxy", c.proxy},
 	), last, string(customAutoproxy))
-	scheduler.NewScheduler().At(scheduler.AtHour(12)).Do(func(_ time.Time) {
-		s, err := fetchAutoproxy(c)
-		if err != nil {
-			errorLogger.Print(err)
-			return
+	go func() {
+		for range time.NewTicker(24 * time.Hour).C {
+			s, err := fetchAutoproxy(c)
+			if err != nil {
+				errorLogger.Print(err)
+				continue
+			}
+			if s == last {
+				accessLogger.Print("autoproxy: no update available")
+				continue
+			}
+			last = s
+			c.autoproxy.Lock()
+			c.autoproxy.PerHost = parseAutoproxy(proxy.NewPerHost(
+				&dialerLogger{"direct", proxy.Direct},
+				&dialerLogger{"proxy", c.proxy},
+			), s, string(customAutoproxy))
+			c.autoproxy.Unlock()
 		}
-		if s == last {
-			accessLogger.Print("autoproxy: no update available")
-			return
-		}
-		last = s
-		c.autoproxy.Lock()
-		defer c.autoproxy.Unlock()
-		c.autoproxy.PerHost = parseAutoproxy(proxy.NewPerHost(
-			&dialerLogger{"direct", proxy.Direct},
-			&dialerLogger{"proxy", c.proxy},
-		), s, string(customAutoproxy))
-	})
+	}()
 	if err := watchFile(
 		*custom,
 		func() {
