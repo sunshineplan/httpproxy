@@ -108,8 +108,9 @@ func parseAutoproxy(p *proxy.PerHost, s, custom string) *proxy.PerHost {
 }
 
 func initAutoproxy(c *Client) *proxy.PerHost {
+	var err error
 	accessLogger.Debug("autoproxy: " + *autoproxy)
-	s, err := fetchAutoproxy(c)
+	last, err = fetchAutoproxy(c)
 	if err != nil {
 		errorLogger.Print(err)
 		return nil
@@ -122,7 +123,7 @@ func initAutoproxy(c *Client) *proxy.PerHost {
 	p := parseAutoproxy(proxy.NewPerHost(
 		&dialerLogger{"direct", proxy.Direct},
 		&dialerLogger{"proxy", c.proxy},
-	), s, string(customAutoproxy))
+	), last, string(customAutoproxy))
 	scheduler.NewScheduler().At(scheduler.AtHour(12)).Do(func(_ time.Time) {
 		s, err := fetchAutoproxy(c)
 		if err != nil {
