@@ -57,13 +57,13 @@ func getAutoproxy(ctx context.Context, proxy *url.URL, c chan<- string) {
 	}
 	req, err := http.NewRequestWithContext(ctx, "GET", autoproxyURL, nil)
 	if err != nil {
-		errorLogger.Println(mode, err)
+		errorLogger.Print(err)
 		return
 	}
 	resp, err := client.Do(req)
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
-			errorLogger.Println(mode, err)
+			errorLogger.Printf("failed to check autoproxy: %s: %s", mode, err)
 		}
 		return
 	}
@@ -74,7 +74,9 @@ func getAutoproxy(ctx context.Context, proxy *url.URL, c chan<- string) {
 	}
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
-		errorLogger.Println(mode, err)
+		if !errors.Is(err, context.Canceled) {
+			errorLogger.Println(mode, err)
+		}
 		return
 	}
 	select {
