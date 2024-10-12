@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -30,71 +31,71 @@ var (
 	customAutoproxy []byte
 )
 
-func fetchAutoproxy(c *Client) (string, error) {
-	accessLogger.Print("fetch autoproxy")
-	ch := make(chan []byte)
-	defer close(ch)
-	go func() {
-		resp, err := http.Get(autoproxyURL)
-		if err != nil {
-			errorLogger.Debug("failed to check autoproxy using default client", "error", err)
-			return
-		}
-		defer resp.Body.Close()
-		b, err := io.ReadAll(resp.Body)
-		if err != nil {
-			errorLogger.Debug("failed to check autoproxy using default client", "error", err)
-			return
-		}
-		select {
-		case ch <- b:
-		default:
-		}
-	}()
-	go func() {
-		if t, ok := http.DefaultTransport.(*http.Transport); ok {
+func getAutoproxy(ctx context.Context, proxy *url.URL, c chan<- string) {
+	mode := "default"
+	client := http.DefaultClient
+	if proxy == nil {
+		mode = "no proxy"
+		t, ok := http.DefaultTransport.(*http.Transport)
+		if ok {
 			t = t.Clone()
 			t.Proxy = nil
-			resp, err := (&http.Client{Transport: t}).Get(autoproxyURL)
-			if err != nil {
-				errorLogger.Debug("failed to check autoproxy without using proxy", "error", err)
-			}
-			defer resp.Body.Close()
-			b, err := io.ReadAll(resp.Body)
-			if err != nil {
-				errorLogger.Debug("failed to check autoproxy without using proxy", "error", err)
-				return
-			}
-			select {
-			case ch <- b:
-			default:
-			}
+			client = &http.Client{Transport: t}
+		} else {
+			client = &http.Client{Transport: &http.Transport{Proxy: nil}}
 		}
-	}()
-	go func() {
-		if t, ok := http.DefaultTransport.(*http.Transport); ok {
+	} else if proxy.String() != "" {
+		mode = "proxy"
+		t, ok := http.DefaultTransport.(*http.Transport)
+		if ok {
 			t = t.Clone()
-			t.Proxy = http.ProxyURL(c.u)
-			resp, err := (&http.Client{Transport: t}).Get(autoproxyURL)
-			if err != nil {
-				errorLogger.Debug("failed to check autoproxy using proxy", "error", err)
-			}
-			defer resp.Body.Close()
-			b, err := io.ReadAll(resp.Body)
-			if err != nil {
-				errorLogger.Debug("failed to check autoproxy using proxy", "error", err)
-				return
-			}
-			select {
-			case ch <- b:
-			default:
-			}
+			t.Proxy = http.ProxyURL(proxy)
+			client = &http.Client{Transport: t}
+		} else {
+			client = &http.Client{Transport: &http.Transport{Proxy: nil}}
 		}
-	}()
+	}
+	req, err := http.NewRequestWithContext(ctx, "GET", autoproxyURL, nil)
+	if err != nil {
+		errorLogger.Println(mode, err)
+		return
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		if err != context.Canceled {
+			errorLogger.Println(mode, err)
+		}
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		errorLogger.Println(mode, resp.StatusCode)
+		return
+	}
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		errorLogger.Println(mode, err)
+		return
+	}
 	select {
-	case <-time.After(time.Minute):
+	case c <- string(b):
+	default:
+	}
+}
+
+func fetchAutoproxy(c *Client) (string, error) {
+	accessLogger.Print("fetch autoproxy")
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	ch := make(chan string)
+	go getAutoproxy(ctx, nil, ch)
+	go getAutoproxy(ctx, c.u, ch)
+	go getAutoproxy(ctx, new(url.URL), ch)
+	select {
+	case <-ctx.Done():
 		return "", errors.New("failed to check autoproxy")
 	case b := <-ch:
+		cancel()
 		accessLogger.Print("autoproxy fetched")
 		return string(b), nil
 	}
