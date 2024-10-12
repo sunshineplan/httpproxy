@@ -72,6 +72,7 @@ var (
 	username  = flag.String("username", "", "Username")
 	password  = flag.String("password", "", "Password")
 	autoproxy = flag.String("autoproxy", "", "Auto proxy listening port")
+	custom    = flag.String("custom", "", "Path to custom autoproxy file")
 )
 
 const clientFlag = `
@@ -121,6 +122,9 @@ func main() {
 	}
 	if *status == "" {
 		*status = filepath.Join(filepath.Dir(self), "status")
+	}
+	if *custom == "" {
+		*custom = filepath.Join(filepath.Dir(self), "autoproxy.txt")
 	}
 
 	initLogger()
