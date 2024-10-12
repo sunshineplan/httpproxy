@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sunshineplan/utils/httpsvr"
+	"github.com/sunshineplan/utils/retry"
 	"github.com/sunshineplan/utils/txt"
 	"golang.org/x/net/proxy"
 )
@@ -36,18 +37,38 @@ func fetchAutoproxy(c *Client) (string, error) {
 	go func() {
 		resp, err := http.Get(autoproxyURL)
 		if err != nil {
-			errorLogger.Debug("failed to check autoproxy without using proxy", "error", err)
+			errorLogger.Debug("failed to check autoproxy using default client", "error", err)
 			return
 		}
 		defer resp.Body.Close()
 		b, err := io.ReadAll(resp.Body)
 		if err != nil {
-			errorLogger.Debug("failed to check autoproxy without using proxy", "error", err)
+			errorLogger.Debug("failed to check autoproxy using default client", "error", err)
 			return
 		}
 		select {
 		case ch <- b:
 		default:
+		}
+	}()
+	go func() {
+		if t, ok := http.DefaultTransport.(*http.Transport); ok {
+			t = t.Clone()
+			t.Proxy = nil
+			resp, err := (&http.Client{Transport: t}).Get(autoproxyURL)
+			if err != nil {
+				errorLogger.Debug("failed to check autoproxy without using proxy", "error", err)
+			}
+			defer resp.Body.Close()
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				errorLogger.Debug("failed to check autoproxy without using proxy", "error", err)
+				return
+			}
+			select {
+			case ch <- b:
+			default:
+			}
 		}
 	}()
 	go func() {
@@ -108,10 +129,11 @@ func parseAutoproxy(p *proxy.PerHost, s, custom string) *proxy.PerHost {
 func initAutoproxy(c *Client) *proxy.PerHost {
 	var err error
 	accessLogger.Debug("autoproxy: " + *autoproxy)
-	last, err = fetchAutoproxy(c)
-	if err != nil {
+	if err = retry.Do(func() (err error) {
+		last, err = fetchAutoproxy(c)
+		return
+	}, 3, 0); err != nil {
 		errorLogger.Print(err)
-		return nil
 	}
 	accessLogger.Debug("custom autoproxy: " + *custom)
 	customAutoproxy, err = os.ReadFile(*custom)
