@@ -62,7 +62,7 @@ func getAutoproxy(ctx context.Context, proxy *url.URL, c chan<- string) {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		if err != context.Canceled {
+		if !errors.Is(err, context.Canceled) {
 			errorLogger.Println(mode, err)
 		}
 		return
