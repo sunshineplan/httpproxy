@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -144,8 +143,8 @@ func initAutoproxy(c *Client) *proxy.PerHost {
 		errorLogger.Println("failed to load custom autoproxy file:", err)
 	}
 	p := parseAutoproxy(proxy.NewPerHost(
-		&dialerLogger{"direct", proxy.Direct},
-		&dialerLogger{"proxy", c.proxy},
+		&Dialer{UseDirect, proxy.Direct},
+		&Dialer{UseProxy, c.proxy},
 	), last, string(customAutoproxy))
 	go func() {
 		t := time.NewTicker(24 * time.Hour)
@@ -162,8 +161,8 @@ func initAutoproxy(c *Client) *proxy.PerHost {
 			last = s
 			c.autoproxy.Lock()
 			c.autoproxy.PerHost = parseAutoproxy(proxy.NewPerHost(
-				&dialerLogger{"direct", proxy.Direct},
-				&dialerLogger{"proxy", c.proxy},
+				&Dialer{UseDirect, proxy.Direct},
+				&Dialer{UseProxy, c.proxy},
 			), s, string(customAutoproxy))
 			c.autoproxy.Unlock()
 		}
@@ -175,8 +174,8 @@ func initAutoproxy(c *Client) *proxy.PerHost {
 			defer c.autoproxy.Unlock()
 			customAutoproxy, _ = os.ReadFile(*custom)
 			c.autoproxy.PerHost = parseAutoproxy(proxy.NewPerHost(
-				&dialerLogger{"direct", proxy.Direct},
-				&dialerLogger{"proxy", c.proxy},
+				&Dialer{UseDirect, proxy.Direct},
+				&Dialer{UseProxy, c.proxy},
 			), last, string(customAutoproxy))
 		},
 		func() {
@@ -184,53 +183,12 @@ func initAutoproxy(c *Client) *proxy.PerHost {
 			defer c.autoproxy.Unlock()
 			customAutoproxy = nil
 			c.autoproxy.PerHost = addPerHost(proxy.NewPerHost(
-				&dialerLogger{"direct", proxy.Direct},
-				&dialerLogger{"proxy", c.proxy},
+				&Dialer{UseDirect, proxy.Direct},
+				&Dialer{UseProxy, c.proxy},
 			), last, false)
 		},
 	); err != nil {
 		errorLogger.Print(err)
 	}
 	return p
-}
-
-type dialerLogger struct {
-	name   string
-	dialer proxy.Dialer
-}
-
-func hostname(address string) string {
-	host, _, _ := net.SplitHostPort(address)
-	return host
-}
-
-func (d *dialerLogger) Dial(network, address string) (net.Conn, error) {
-	accessLogger.Printf("[%s] %s", d.name, hostname(address))
-	return d.dialer.Dial(network, address)
-}
-
-func (d *dialerLogger) DialContext(ctx context.Context, network, address string) (conn net.Conn, err error) {
-	accessLogger.Printf("[%s] %s", d.name, hostname(address))
-	if f, ok := d.dialer.(proxy.ContextDialer); ok {
-		return f.DialContext(ctx, network, address)
-	} else {
-		return dialContext(ctx, d.dialer, network, address)
-	}
-}
-
-func dialContext(ctx context.Context, d proxy.Dialer, network, address string) (conn net.Conn, err error) {
-	done := make(chan struct{}, 1)
-	go func() {
-		conn, err = d.Dial(network, address)
-		close(done)
-		if conn != nil && ctx.Err() != nil {
-			conn.Close()
-		}
-	}()
-	select {
-	case <-ctx.Done():
-		err = ctx.Err()
-	case <-done:
-	}
-	return
 }
