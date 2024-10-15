@@ -101,5 +101,5 @@ func parseWhitelist(m *cache.Map[allow, *limit], s []string) {
 			}
 		}
 	}
-	accessLogger.Printf("loaded %d whitelist accounts", len(list))
+	accessLogger.Printf("loaded %d whitelist records", len(list))
 }
