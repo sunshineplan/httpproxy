@@ -58,7 +58,7 @@ func watchFile(file string, fnChange, fnRemove func()) error {
 	return nil
 }
 
-func transfer(dst io.WriteCloser, src io.ReadCloser, user string, lim *limiter.Limiter) {
+func transfer(dst io.WriteCloser, src io.ReadCloser, user user, lim *limiter.Limiter) {
 	defer dst.Close()
 	defer src.Close()
 	if lim == nil {

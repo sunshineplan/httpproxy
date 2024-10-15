@@ -20,18 +20,22 @@ const timeFormat = time.RFC3339Nano
 
 var recordFile string
 
-var recordMap = cache.NewMap[string, *record]()
+var recordMap = cache.NewMap[user, *record]()
 
-func init() {
-	scheduler.NewScheduler().At(scheduler.AtClock(0, 0, 0)).Do(func(t time.Time) {
-		recordMap.Range(func(_ string, v *record) bool {
+var now = time.Now()
+
+func checkDayChange() {
+	t := time.Now()
+	if now.YearDay() != t.YearDay() {
+		recordMap.Range(func(_ user, v *record) bool {
 			v.today.Add(-v.today.Load())
 			if t.Day() == 1 {
 				v.monthly.Add(-v.monthly.Load())
 			}
 			return true
 		})
-	})
+		now = t
+	}
 }
 
 type record struct {
@@ -42,7 +46,7 @@ func (r *record) writer(w io.Writer) io.Writer {
 	return r.today.AddWriter(r.monthly.AddWriter(r.total.AddWriter(w)))
 }
 
-func store(user string, today, monthly, total int64) *record {
+func store(user user, today, monthly, total int64) *record {
 	v := new(record)
 	v.today.Add(today)
 	v.monthly.Add(monthly)
@@ -51,8 +55,8 @@ func store(user string, today, monthly, total int64) *record {
 	return v
 }
 
-func count(user string, w io.Writer) io.Writer {
-	if user == "" {
+func count(user user, w io.Writer) io.Writer {
+	if user.name == "" {
 		return w
 	}
 	if v, ok := recordMap.Load(user); ok {
@@ -93,7 +97,11 @@ func parseRecord(rows []string) {
 				continue
 			}
 		}
-		store(s[0], today, monthly, total)
+		if before, found := strings.CutSuffix(s[0], "[w]"); found {
+			store(user{before, true}, today, monthly, total)
+		} else {
+			store(user{before, false}, today, monthly, total)
+		}
 	}
 }
 
@@ -107,8 +115,14 @@ func saveRecord(base *Base) {
 	fmt.Fprintln(zw, time.Now().Format(timeFormat))
 
 	base.accounts.Range(func(a auth.Basic, _ *limit) bool {
-		if v, ok := recordMap.Load(a.Username); ok {
+		if v, ok := recordMap.Load(user{a.Username, false}); ok {
 			fmt.Fprintf(zw, "%s:%d:%d:%d\n", a.Username, v.today.Load(), v.monthly.Load(), v.total.Load())
+		}
+		return true
+	})
+	base.whitelist.Range(func(a allow, _ *limit) bool {
+		if v, ok := recordMap.Load(user{string(a), true}); ok {
+			fmt.Fprintf(zw, "%s[w]:%d:%d:%d\n", a, v.today.Load(), v.monthly.Load(), v.total.Load())
 		}
 		return true
 	})

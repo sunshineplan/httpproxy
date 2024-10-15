@@ -90,7 +90,7 @@ func (c *Client) Run() error {
 	return c.Base.Run()
 }
 
-func (c *Client) HTTP(user string, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request, autoproxy bool) {
+func (c *Client) HTTP(user user, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request, autoproxy bool) {
 	port := r.URL.Port()
 	if port == "" {
 		port = "80"
@@ -104,14 +104,18 @@ func (c *Client) HTTP(user string, lim *limiter.Limiter, w http.ResponseWriter, 
 	} else {
 		conn, err = c.proxy.Dial("tcp", net.JoinHostPort(r.URL.Hostname(), port))
 	}
+	var name string
+	if user.name != "" {
+		name = "[" + user.name + "]"
+	}
 	var direct bool
 	if t, ok := IsTyped(conn, err); ok {
-		accessLogger.Printf("[%s]%s[%s] %s %s", t, r.RemoteAddr, user, r.Method, r.URL)
+		accessLogger.Printf("[%s]%s%s %s %s", t, r.RemoteAddr, name, r.Method, r.URL)
 		if t == UseDirect {
 			direct = true
 		}
 	} else {
-		accessLogger.Printf("[C]%s[%s] %s %s", r.RemoteAddr, user, r.Method, r.URL)
+		accessLogger.Printf("[C]%s%s %s %s", r.RemoteAddr, name, r.Method, r.URL)
 	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -146,7 +150,7 @@ func (c *Client) HTTP(user string, lim *limiter.Limiter, w http.ResponseWriter, 
 	}
 }
 
-func (c *Client) HTTPS(user string, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request, autoproxy bool) {
+func (c *Client) HTTPS(u user, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request, autoproxy bool) {
 	var dest_conn net.Conn
 	var err error
 	if autoproxy {
@@ -156,14 +160,18 @@ func (c *Client) HTTPS(user string, lim *limiter.Limiter, w http.ResponseWriter,
 	} else {
 		dest_conn, err = c.proxy.Dial("tcp", r.Host)
 	}
+	var name string
+	if u.name != "" {
+		name = "[" + u.name + "]"
+	}
 	var direct bool
 	if t, ok := IsTyped(dest_conn, err); ok {
-		accessLogger.Printf("[%s]%s[%s] %s %s", t, r.RemoteAddr, user, r.Method, r.URL)
+		accessLogger.Printf("[%s]%s%s %s %s", t, r.RemoteAddr, name, r.Method, r.URL)
 		if t == UseDirect {
 			direct = true
 		}
 	} else {
-		accessLogger.Printf("[C]%s[%s] %s %s", r.RemoteAddr, user, r.Method, r.URL)
+		accessLogger.Printf("[C]%s%s %s %s", r.RemoteAddr, name, r.Method, r.URL)
 	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -184,11 +192,11 @@ func (c *Client) HTTPS(user string, lim *limiter.Limiter, w http.ResponseWriter,
 		return
 	}
 
-	go transfer(dest_conn, client_conn, "", nil)
+	go transfer(dest_conn, client_conn, user{}, nil)
 	if direct {
-		go transfer(client_conn, dest_conn, "", nil)
+		go transfer(client_conn, dest_conn, user{}, nil)
 	} else {
-		go transfer(client_conn, dest_conn, user, lim)
+		go transfer(client_conn, dest_conn, u, lim)
 	}
 }
 
