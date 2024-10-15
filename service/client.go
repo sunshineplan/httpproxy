@@ -104,6 +104,15 @@ func (c *Client) HTTP(user string, lim *limiter.Limiter, w http.ResponseWriter, 
 	} else {
 		conn, err = c.proxy.Dial("tcp", net.JoinHostPort(r.URL.Hostname(), port))
 	}
+	var direct bool
+	if t, ok := IsTyped(conn, err); ok {
+		accessLogger.Printf("[%s]%s[%s] %s %s", t, r.RemoteAddr, user, r.Method, r.URL)
+		if t == UseDirect {
+			direct = true
+		}
+	} else {
+		accessLogger.Printf("[C]%s[%s] %s %s", r.RemoteAddr, user, r.Method, r.URL)
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
@@ -130,7 +139,11 @@ func (c *Client) HTTP(user string, lim *limiter.Limiter, w http.ResponseWriter, 
 		}
 	}
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(count(user, lim.Writer(w)), resp.Body)
+	if direct {
+		io.Copy(w, resp.Body)
+	} else {
+		io.Copy(count(user, lim.Writer(w)), resp.Body)
+	}
 }
 
 func (c *Client) HTTPS(user string, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request, autoproxy bool) {
@@ -142,6 +155,15 @@ func (c *Client) HTTPS(user string, lim *limiter.Limiter, w http.ResponseWriter,
 		c.autoproxy.RUnlock()
 	} else {
 		dest_conn, err = c.proxy.Dial("tcp", r.Host)
+	}
+	var direct bool
+	if t, ok := IsTyped(dest_conn, err); ok {
+		accessLogger.Printf("[%s]%s[%s] %s %s", t, r.RemoteAddr, user, r.Method, r.URL)
+		if t == UseDirect {
+			direct = true
+		}
+	} else {
+		accessLogger.Printf("[C]%s[%s] %s %s", r.RemoteAddr, user, r.Method, r.URL)
 	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -163,7 +185,11 @@ func (c *Client) HTTPS(user string, lim *limiter.Limiter, w http.ResponseWriter,
 	}
 
 	go transfer(dest_conn, client_conn, "", nil)
-	go transfer(client_conn, dest_conn, user, lim)
+	if direct {
+		go transfer(client_conn, dest_conn, "", nil)
+	} else {
+		go transfer(client_conn, dest_conn, user, lim)
+	}
 }
 
 func (c *Client) Handler(autoproxy bool) http.HandlerFunc {
@@ -172,11 +198,6 @@ func (c *Client) Handler(autoproxy bool) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		tag := "C"
-		if autoproxy {
-			tag = "A"
-		}
-		accessLogger.Printf("[%s]%s[%s] %s %s", tag, r.RemoteAddr, user, r.Method, r.URL)
 		if r.Method == http.MethodConnect {
 			c.HTTPS(user, lim, w, r, autoproxy)
 		} else {
