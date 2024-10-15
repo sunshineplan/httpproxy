@@ -7,12 +7,21 @@ import (
 	"golang.org/x/net/proxy"
 )
 
-type DialerType string
+type DialerType int
 
 const (
-	UseDirect DialerType = "direct"
-	UseProxy  DialerType = "proxy"
+	UseDirect DialerType = iota + 1
+	UseProxy
 )
+
+var typeList = map[DialerType]string{
+	UseDirect: "direct",
+	UseProxy:  "proxy",
+}
+
+func (t DialerType) String() string {
+	return typeList[t]
+}
 
 type Dialer struct {
 	DialerType
@@ -83,12 +92,12 @@ func IsTyped(conn net.Conn, err error) (DialerType, bool) {
 		if v, ok := conn.(Typed); ok {
 			return v.Type(), true
 		}
-		return "", false
+		return 0, false
 	}
 	if err != nil {
 		if v, ok := conn.(Typed); ok {
 			return v.Type(), true
 		}
 	}
-	return "", false
+	return 0, false
 }
