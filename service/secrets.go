@@ -86,14 +86,5 @@ func parseSecrets(m *cache.Map[auth.Basic, *limit], s []string) {
 			}
 		}
 	}
-	accessLogger.Printf("loaded %d accounts", accountsCount(m))
-}
-
-func accountsCount(m *cache.Map[auth.Basic, *limit]) int {
-	var n int
-	m.Range(func(a auth.Basic, l *limit) bool {
-		n++
-		return true
-	})
-	return n
+	accessLogger.Printf("loaded %d user accounts", len(list))
 }

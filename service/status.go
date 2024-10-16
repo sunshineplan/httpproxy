@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/sunshineplan/httpproxy/auth"
-	"github.com/sunshineplan/utils/cache"
 	"github.com/sunshineplan/utils/httpsvr"
 	"github.com/sunshineplan/utils/pool"
 	"github.com/sunshineplan/utils/scheduler"
@@ -22,20 +21,20 @@ import (
 var usagePool = pool.New[usage]()
 
 type usage struct {
-	user                  string
+	user                  user
 	today, monthly, total unit.ByteSize
 }
 
 func (res usage) String(length [3]int) string {
 	return fmt.Sprint(
-		res.user, strings.Repeat(" ", length[0]-len(res.user)+3),
+		res.user.name, strings.Repeat(" ", length[0]-len(res.user.name)+3),
 		res.today, strings.Repeat(" ", length[1]-len(res.today.String())+3),
 		res.monthly, strings.Repeat(" ", length[2]-len(res.monthly.String())+3),
 		res.total,
 	)
 }
 
-func getUsage(user string) *usage {
+func getUsage(user user) *usage {
 	if v, ok := recordMap.Load(user); ok {
 		res := usagePool.Get()
 		res.user = user
@@ -47,14 +46,20 @@ func getUsage(user string) *usage {
 	return nil
 }
 
-func writeUsages(accounts *cache.Map[auth.Basic, *limit], w io.Writer) {
+func writeUsages(base *Base, w io.Writer) {
 	var res []*usage
-	if usage := getUsage("anonymous"); usage != nil {
+	if usage := getUsage(user{}); usage != nil {
 		res = append(res, usage)
 	}
 
-	accounts.Range(func(a auth.Basic, _ *limit) bool {
-		if usage := getUsage(a.Username); usage != nil {
+	base.accounts.Range(func(a auth.Basic, _ *limit) bool {
+		if usage := getUsage(user{a.Username, false}); usage != nil {
+			res = append(res, usage)
+		}
+		return true
+	})
+	base.whitelist.Range(func(a allow, _ *limit) bool {
+		if usage := getUsage(user{string(a), true}); usage != nil {
 			res = append(res, usage)
 		}
 		return true
@@ -72,7 +77,7 @@ func writeUsages(accounts *cache.Map[auth.Basic, *limit], w io.Writer) {
 
 	length := [3]int{4, 5, 7}
 	for _, i := range res {
-		if l := len(i.user); l > length[0] {
+		if l := len(i.user.name); l > length[0] {
 			length[0] = l
 		}
 		if l := len(i.today.String()); l > length[1] {
@@ -99,6 +104,8 @@ func writeUsages(accounts *cache.Map[auth.Basic, *limit], w io.Writer) {
 var start time.Time
 
 func saveStatus(base *Base, servers []*httpsvr.Server) {
+	checkDayChange()
+
 	f, err := os.Create(*status)
 	if err != nil {
 		errorLogger.Print(err)
@@ -117,7 +124,7 @@ func saveStatus(base *Base, servers []*httpsvr.Server) {
 	}
 	fmt.Fprintf(f, "Send: %s   Receive: %s\n", unit.ByteSize(send), unit.ByteSize(receive))
 	fmt.Fprintln(f)
-	writeUsages(base.accounts, f)
+	writeUsages(base, f)
 }
 
 func initStatus(base *Base, servers []*httpsvr.Server) {

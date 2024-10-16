@@ -41,7 +41,7 @@ func (s *Server) Run() error {
 	return s.Base.Run()
 }
 
-func (*Server) HTTP(user string, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request) {
+func (*Server) HTTP(user user, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request) {
 	resp, err := http.DefaultTransport.RoundTrip(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -59,7 +59,7 @@ func (*Server) HTTP(user string, lim *limiter.Limiter, w http.ResponseWriter, r 
 	io.Copy(count(user, lim.Writer(w)), resp.Body)
 }
 
-func (*Server) HTTPS(user string, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request) {
+func (*Server) HTTPS(u user, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request) {
 	dest_conn, err := net.DialTimeout("tcp", r.Host, 15*time.Second)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -81,8 +81,8 @@ func (*Server) HTTPS(user string, lim *limiter.Limiter, w http.ResponseWriter, r
 		return
 	}
 
-	go transfer(dest_conn, client_conn, "", nil)
-	go transfer(client_conn, dest_conn, user, lim)
+	go transfer(dest_conn, client_conn, user{}, nil)
+	go transfer(client_conn, dest_conn, u, lim)
 }
 
 func (s *Server) Handler(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +91,11 @@ func (s *Server) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessLogger.Printf("[S]%s[%s] %s %s", r.RemoteAddr, user, r.Method, r.URL)
+	var name string
+	if user.name != "" {
+		name = "[" + user.name + "]"
+	}
+	accessLogger.Printf("[S]%s%s %s %s", r.RemoteAddr, name, r.Method, r.URL)
 	if r.Method == http.MethodConnect {
 		s.HTTPS(user, lim, w, r)
 	} else {
