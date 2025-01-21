@@ -28,8 +28,6 @@ go build
     	Listening host
   --port <number>
     	Listening port
-  --mode <string>
-    	Specify server or client mode (default: server)
   --access-log <file>
     	Path to access log file
   --error-log <file>
@@ -94,7 +92,6 @@ go build
 ### config.ini(server)
 
 ```
-mode       = server
 host       = 0.0.0.0
 port       = 443
 https      = true
@@ -107,7 +104,6 @@ error-log  = /var/log/httpproxy/error.log
 ### config.ini(client)
 
 ```
-mode     = client
 port     = 8888
 proxy    = https://proxy:443
 username = proxy
