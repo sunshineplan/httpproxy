@@ -15,7 +15,6 @@ import (
 var (
 	host      = flag.String("host", "", "Listening host")
 	port      = flag.String("port", "", "Listening port")
-	mode      = flag.String("mode", "server", "server or client mode")
 	accesslog = flag.String("access-log", "", "Path to access log file")
 	errorlog  = flag.String("error-log", "", "Path to error log file")
 	secrets   = flag.String("secrets", "", "Path to secrets file for Basic Authentication")
@@ -31,8 +30,6 @@ common:
     	Listening host
   --port <number>
     	Listening port
-  --mode <string>
-    	Specify server or client mode (default: server)
   --access-log <file>
     	Path to access log file
   --error-log <file>
