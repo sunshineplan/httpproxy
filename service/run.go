@@ -1,11 +1,9 @@
 package main
 
 import (
-	"errors"
 	"net"
 	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/sunshineplan/utils/httpsvr"
 	"golang.org/x/net/proxy"
@@ -25,8 +23,7 @@ func run() error {
 	base.ErrorLog = errorLogger.Logger
 	servers := []*httpsvr.Server{base.Server}
 	var runner Runner
-	switch mode := strings.ToLower(*mode); mode {
-	case "server":
+	if *proxyAddr == "" {
 		if base.Port == "" {
 			base.Port = defaultServerPort
 		}
@@ -35,7 +32,7 @@ func run() error {
 			s.SetTLS(*cert, *privkey)
 		}
 		runner = s
-	case "client":
+	} else {
 		if base.Port == "" {
 			base.Port = defaultClientPort
 		}
@@ -51,8 +48,6 @@ func run() error {
 			servers = append(servers, c.autoproxy.Server)
 		}
 		runner = c
-	default:
-		return errors.New("unknow mode: " + mode)
 	}
 	base.accounts = initSecrets(*secrets)
 	base.whitelist = initWhitelist(*whitelist)
@@ -68,13 +63,10 @@ func run() error {
 func test() error {
 	base := NewBase(*host, *port)
 	if base.Port == "" {
-		switch strings.ToLower(*mode) {
-		case "server":
+		if *proxyAddr == "" {
 			base.Port = defaultServerPort
-		case "client":
+		} else {
 			base.Port = defaultClientPort
-		default:
-			return errors.New("unknow mode:" + *mode)
 		}
 	}
 
@@ -88,7 +80,7 @@ func test() error {
 	}
 	l.Close()
 
-	if strings.ToLower(*mode) == "client" {
+	if *proxyAddr != "" {
 		if _, err := url.Parse(*proxyAddr); err != nil {
 			return err
 		}
