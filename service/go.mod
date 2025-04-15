@@ -2,8 +2,6 @@ module httpproxy
 
 go 1.24
 
-toolchain go1.24.2
-
 require (
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/sunshineplan/httpproxy v0.0.0-00010101000000-000000000000
