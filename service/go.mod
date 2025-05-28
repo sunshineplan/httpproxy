@@ -7,7 +7,7 @@ require (
 	github.com/sunshineplan/httpproxy v0.0.0-00010101000000-000000000000
 	github.com/sunshineplan/limiter v1.0.0
 	github.com/sunshineplan/service v1.0.22
-	github.com/sunshineplan/utils v0.1.74
+	github.com/sunshineplan/utils v0.1.76
 	golang.org/x/net v0.40.0
 	golang.org/x/time v0.11.0
 )
