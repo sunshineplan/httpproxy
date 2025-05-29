@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/sunshineplan/limiter"
-	"github.com/sunshineplan/utils/cache"
+	"github.com/sunshineplan/utils/container"
 	"github.com/sunshineplan/utils/txt"
 )
 
@@ -34,9 +34,9 @@ func (allow allow) isAllow(s string) bool {
 	return false
 }
 
-func initWhitelist(file string) *cache.Map[allow, *limit] {
+func initWhitelist(file string) *container.Map[allow, *limit] {
 	accessLogger.Debug("whitelist: " + file)
-	whitelist := cache.NewMap[allow, *limit]()
+	whitelist := container.NewMap[allow, *limit]()
 	if rows, err := txt.ReadFile(file); err != nil {
 		errorLogger.Println("failed to load whitelist file:", err)
 	} else {
@@ -61,7 +61,7 @@ func initWhitelist(file string) *cache.Map[allow, *limit] {
 	return whitelist
 }
 
-func parseWhitelist(m *cache.Map[allow, *limit], s []string) {
+func parseWhitelist(m *container.Map[allow, *limit], s []string) {
 	list := make(map[allow]struct{})
 	for _, row := range s {
 		if i := strings.IndexRune(row, '#'); i != -1 {

@@ -4,8 +4,8 @@ github.com/sunshineplan/limiter v1.0.0 h1:wx3q5eS5J+ggXlAxzg9k6UbDyJYrysNmHyxt5c
 github.com/sunshineplan/limiter v1.0.0/go.mod h1:+Pjd5Pu7i5YclrnFz+MBFxGB9+MZ2cytQeV+S9kXOxY=
 github.com/sunshineplan/service v1.0.22 h1:MFXKIbcd3POiJb9KRI8oeybc2qN0p79vv9f+OL88EDU=
 github.com/sunshineplan/service v1.0.22/go.mod h1:JR7cTSNJVlajjXfXobA3Rr46z88M+6VK6coxq7JmyrY=
-github.com/sunshineplan/utils v0.1.74 h1:Zr5Si2lllOfDbxcSz4GpaSsF24CzlBFNrF/WGMc8lH8=
-github.com/sunshineplan/utils v0.1.74/go.mod h1:61jHA9jn2CVlZzt9LbPz+MpOEiR6Jy5SNHHEcc/KQNk=
+github.com/sunshineplan/utils v0.1.76 h1:FYdXgKi1S7yCnWRYnP7spmOakcFK3Fhkakf4G0kA2sg=
+github.com/sunshineplan/utils v0.1.76/go.mod h1:R7MInPRKnExzzNGJ9qY1W0+11P/3jc6IO5ICuGDPA1w=
 golang.org/x/net v0.40.0 h1:79Xs7wF06Gbdcg4kdCCIQArK11Z1hr5POQ6+fIYHNuY=
 golang.org/x/net v0.40.0/go.mod h1:y0hY0exeL2Pku80/zKK7tpntoX23cqL3Oa6njdgRtds=
 golang.org/x/sys v0.33.0 h1:q3i8TbbEz+JRD9ywIRlyRAQbM0qF7hu24q3teo2hbuw=

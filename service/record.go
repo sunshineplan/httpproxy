@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/sunshineplan/httpproxy/auth"
-	"github.com/sunshineplan/utils/cache"
+	"github.com/sunshineplan/utils/container"
 	"github.com/sunshineplan/utils/counter"
 	"github.com/sunshineplan/utils/scheduler"
 	"github.com/sunshineplan/utils/txt"
@@ -20,7 +20,7 @@ const timeFormat = time.RFC3339Nano
 
 var recordFile string
 
-var recordMap = cache.NewMap[user, *record]()
+var recordMap = container.NewMap[user, *record]()
 
 var now = time.Now()
 
