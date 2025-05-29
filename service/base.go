@@ -5,21 +5,21 @@ import (
 
 	"github.com/sunshineplan/httpproxy/auth"
 	"github.com/sunshineplan/limiter"
-	"github.com/sunshineplan/utils/cache"
+	"github.com/sunshineplan/utils/container"
 	"github.com/sunshineplan/utils/httpsvr"
 )
 
 type Base struct {
 	*httpsvr.Server
-	accounts  *cache.Map[auth.Basic, *limit]
-	whitelist *cache.Map[allow, *limit]
+	accounts  *container.Map[auth.Basic, *limit]
+	whitelist *container.Map[allow, *limit]
 }
 
 func NewBase(host, port string) *Base {
 	base := &Base{
 		Server:    httpsvr.New(),
-		accounts:  cache.NewMap[auth.Basic, *limit](),
-		whitelist: cache.NewMap[allow, *limit](),
+		accounts:  container.NewMap[auth.Basic, *limit](),
+		whitelist: container.NewMap[allow, *limit](),
 	}
 	base.Host = host
 	base.Port = port

@@ -6,7 +6,7 @@ import (
 
 	"github.com/sunshineplan/httpproxy/auth"
 	"github.com/sunshineplan/limiter"
-	"github.com/sunshineplan/utils/cache"
+	"github.com/sunshineplan/utils/container"
 	"github.com/sunshineplan/utils/txt"
 )
 
@@ -18,9 +18,9 @@ func parseAccount(s string) (auth.Basic, error) {
 	return auth.Basic{Username: fields[0], Password: fields[1]}, nil
 }
 
-func initSecrets(file string) *cache.Map[auth.Basic, *limit] {
+func initSecrets(file string) *container.Map[auth.Basic, *limit] {
 	accessLogger.Debug("secrets: " + file)
-	accounts := cache.NewMap[auth.Basic, *limit]()
+	accounts := container.NewMap[auth.Basic, *limit]()
 	if rows, err := txt.ReadFile(file); err != nil {
 		errorLogger.Println("failed to load secrets file:", err)
 	} else {
@@ -45,7 +45,7 @@ func initSecrets(file string) *cache.Map[auth.Basic, *limit] {
 	return accounts
 }
 
-func parseSecrets(m *cache.Map[auth.Basic, *limit], s []string) {
+func parseSecrets(m *container.Map[auth.Basic, *limit], s []string) {
 	list := make(map[string]struct{})
 	for _, row := range s {
 		if i := strings.IndexRune(row, '#'); i != -1 {
