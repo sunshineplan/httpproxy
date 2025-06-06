@@ -8,7 +8,7 @@ require (
 	github.com/sunshineplan/limiter v1.0.0
 	github.com/sunshineplan/service v1.0.22
 	github.com/sunshineplan/utils v0.1.76
-	golang.org/x/net v0.40.0
+	golang.org/x/net v0.41.0
 	golang.org/x/time v0.12.0
 )
 
