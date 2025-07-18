@@ -22,6 +22,7 @@ var (
 	status    = flag.String("status", "", "Path to status file")
 	keep      = flag.Int("keep", 100, "Count of status files")
 	debug     = flag.Bool("debug", false, "debug")
+	pprof     = flag.String("pprof", "", "pprof port")
 )
 
 const commonFlag = `
