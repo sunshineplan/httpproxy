@@ -2,6 +2,7 @@ package main
 
 import (
 	"io"
+	"net"
 	"net/url"
 	"path/filepath"
 	"time"
@@ -58,7 +59,7 @@ func watchFile(file string, fnChange, fnRemove func()) error {
 	return nil
 }
 
-func transfer(dst io.WriteCloser, src io.ReadCloser, user user, lim *limiter.Limiter) {
+func transfer(dst, src net.Conn, user user, lim *limiter.Limiter) {
 	defer dst.Close()
 	defer src.Close()
 	if lim == nil {
