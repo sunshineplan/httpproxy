@@ -145,5 +145,5 @@ func initRecord(base *Base) {
 	} else {
 		errorLogger.Print(err)
 	}
-	scheduler.NewScheduler().At(scheduler.AtMinute(0)).Do(func(_ time.Time) { saveRecord(base) })
+	scheduler.NewScheduler().At(scheduler.AtMinute(0)).Do(func(scheduler.Event) { saveRecord(base) })
 }
