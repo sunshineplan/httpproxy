@@ -141,7 +141,7 @@ func initStatus(base *Base, servers []*httpsvr.Server) {
 
 	start = time.Now()
 	saveStatus(base, servers)
-	scheduler.NewScheduler().At(scheduler.AtSecond(0)).Do(func(_ time.Time) { saveStatus(base, servers) })
+	scheduler.NewScheduler().At(scheduler.AtSecond(0)).Do(func(scheduler.Event) { saveStatus(base, servers) })
 }
 
 func keepStatus(n int) (err error) {
