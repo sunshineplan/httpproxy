@@ -2,10 +2,10 @@ github.com/fsnotify/fsnotify v1.9.0 h1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S
 github.com/fsnotify/fsnotify v1.9.0/go.mod h1:8jBTzvmWwFyi3Pb8djgCCO5IBqzKJ/Jwo8TRcHyHii0=
 github.com/sunshineplan/limiter v1.0.0 h1:wx3q5eS5J+ggXlAxzg9k6UbDyJYrysNmHyxt5cNmCP8=
 github.com/sunshineplan/limiter v1.0.0/go.mod h1:+Pjd5Pu7i5YclrnFz+MBFxGB9+MZ2cytQeV+S9kXOxY=
-github.com/sunshineplan/service v1.0.22 h1:MFXKIbcd3POiJb9KRI8oeybc2qN0p79vv9f+OL88EDU=
-github.com/sunshineplan/service v1.0.22/go.mod h1:JR7cTSNJVlajjXfXobA3Rr46z88M+6VK6coxq7JmyrY=
-github.com/sunshineplan/utils v0.1.80 h1:dVGZqO3HvwxqyDwuRLwCm2QMZp7Wx2//F15PnD4wOt4=
-github.com/sunshineplan/utils v0.1.80/go.mod h1:R7MInPRKnExzzNGJ9qY1W0+11P/3jc6IO5ICuGDPA1w=
+github.com/sunshineplan/service v1.0.23 h1:3Q27IySBklhJSN8X81IzTetK4Om76DjBadO+P5+uQoY=
+github.com/sunshineplan/service v1.0.23/go.mod h1:g0BVjUlA7ozRx7nS8VpqH4tUlEnD4qbXlH8+1M3m7U0=
+github.com/sunshineplan/utils v0.1.81 h1:0Y0nhwPB2ZCg14TedbFVX4FYKpCpEONsifWRPbSy0tE=
+github.com/sunshineplan/utils v0.1.81/go.mod h1:R7MInPRKnExzzNGJ9qY1W0+11P/3jc6IO5ICuGDPA1w=
 golang.org/x/net v0.46.0 h1:giFlY12I07fugqwPuWJi68oOnpfqFnJIJzaIIm2JVV4=
 golang.org/x/net v0.46.0/go.mod h1:Q9BGdFy1y4nkUwiLvT5qtyhAnEHgnQ/zd8PfU6nc210=
 golang.org/x/sys v0.37.0 h1:fdNQudmxPjkdUTPnLn5mdQv7Zwvbvpaxqs831goi9kQ=
