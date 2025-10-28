@@ -38,9 +38,9 @@ func getUsage(user user) *usage {
 	if v, ok := recordMap.Load(user); ok {
 		res := usagePool.Get()
 		res.user = user
-		res.today = unit.ByteSize(v.today.Load())
-		res.monthly = unit.ByteSize(v.monthly.Load())
-		res.total = unit.ByteSize(v.total.Load())
+		res.today = unit.ByteSize(v.today.Get())
+		res.monthly = unit.ByteSize(v.monthly.Get())
+		res.total = unit.ByteSize(v.total.Get())
 		return res
 	}
 	return nil
@@ -119,8 +119,8 @@ func saveStatus(base *Base, servers []*httpsvr.Server) {
 	fmt.Fprintln(f, "Throughput:")
 	var send, receive int64
 	for _, i := range servers {
-		send += i.WriteCount()
-		receive += i.ReadCount()
+		send += i.WriteBytes()
+		receive += i.WriteBytes()
 	}
 	fmt.Fprintf(f, "Send: %s   Receive: %s\n", unit.ByteSize(send), unit.ByteSize(receive))
 	fmt.Fprintln(f)

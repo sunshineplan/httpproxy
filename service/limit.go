@@ -67,8 +67,8 @@ func (limit limit) isExceeded(record *record) bool {
 	if limit.daily == 0 && limit.monthly == 0 {
 		return false
 	}
-	if limit.daily == 0 || record.today.Load() < int64(limit.daily) {
-		return record.monthly.Load() >= int64(limit.monthly)
+	if limit.daily == 0 || record.today.Get() < int64(limit.daily) {
+		return record.monthly.Get() >= int64(limit.monthly)
 	}
-	return record.today.Load() >= int64(limit.daily)
+	return record.today.Get() >= int64(limit.daily)
 }
