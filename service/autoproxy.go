@@ -106,16 +106,20 @@ func addPerHost(p *proxy.PerHost, s string, custom bool) *proxy.PerHost {
 	if custom {
 		p.AddFromString(s)
 	} else {
-		for _, i := range txt.ReadAll(strings.NewReader(s)) {
-			if strings.HasSuffix(i, "@cn") {
-				continue
-			}
-			i = strings.ReplaceAll(i, ":@ads", "")
-			switch {
-			case strings.HasPrefix(i, "domain:"):
-				p.AddZone(strings.TrimPrefix(i, "domain:"))
-			case strings.HasPrefix(i, "full:"):
-				p.AddHost(strings.TrimPrefix(i, "full:"))
+		if res, err := txt.ReadAll(strings.NewReader(s)); err != nil {
+			errorLogger.Print(err)
+		} else {
+			for _, i := range res {
+				if strings.HasSuffix(i, "@cn") {
+					continue
+				}
+				i = strings.ReplaceAll(i, ":@ads", "")
+				switch {
+				case strings.HasPrefix(i, "domain:"):
+					p.AddZone(strings.TrimPrefix(i, "domain:"))
+				case strings.HasPrefix(i, "full:"):
+					p.AddHost(strings.TrimPrefix(i, "full:"))
+				}
 			}
 		}
 	}

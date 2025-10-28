@@ -28,9 +28,9 @@ func checkDayChange() {
 	t := time.Now()
 	if now.YearDay() != t.YearDay() {
 		recordMap.Range(func(_ user, v *record) bool {
-			v.today.Add(-v.today.Load())
+			v.today.Add(-v.today.Get())
 			if t.Day() == 1 {
-				v.monthly.Add(-v.monthly.Load())
+				v.monthly.Add(-v.monthly.Get())
 			}
 			return true
 		})
@@ -43,7 +43,7 @@ type record struct {
 }
 
 func (r *record) writer(w io.Writer) io.Writer {
-	return r.today.AddWriter(r.monthly.AddWriter(r.total.AddWriter(w)))
+	return counter.CountWriter(counter.CountWriter(counter.CountWriter(w, &r.total), &r.monthly), &r.today)
 }
 
 func store(user user, today, monthly, total int64) *record {
@@ -90,7 +90,7 @@ func parseRecord(rows []string) {
 				continue
 			}
 		}
-		if t == now {
+		if t.Equal(now) {
 			today, err = strconv.ParseInt(s[1], 10, 64)
 			if err != nil {
 				errorLogger.Println(row, err)
@@ -116,13 +116,13 @@ func saveRecord(base *Base) {
 
 	base.accounts.Range(func(a auth.Basic, _ *limit) bool {
 		if v, ok := recordMap.Load(user{a.Username, false}); ok {
-			fmt.Fprintf(zw, "%s:%d:%d:%d\n", a.Username, v.today.Load(), v.monthly.Load(), v.total.Load())
+			fmt.Fprintf(zw, "%s:%d:%d:%d\n", a.Username, v.today.Get(), v.monthly.Get(), v.total.Get())
 		}
 		return true
 	})
 	base.whitelist.Range(func(a allow, _ *limit) bool {
 		if v, ok := recordMap.Load(user{string(a), true}); ok {
-			fmt.Fprintf(zw, "%s[w]:%d:%d:%d\n", a, v.today.Load(), v.monthly.Load(), v.total.Load())
+			fmt.Fprintf(zw, "%s[w]:%d:%d:%d\n", a, v.today.Get(), v.monthly.Get(), v.total.Get())
 		}
 		return true
 	})
@@ -138,7 +138,11 @@ func initRecord(base *Base) {
 		defer f.Close()
 		if zr, err := gzip.NewReader(f); err == nil {
 			defer zr.Close()
-			parseRecord(txt.ReadAll(zr))
+			if rows, err := txt.ReadAll(zr); err == nil {
+				parseRecord(rows)
+			} else {
+				errorLogger.Print(err)
+			}
 		} else {
 			errorLogger.Print(err)
 		}
