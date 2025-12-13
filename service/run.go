@@ -2,8 +2,6 @@ package main
 
 import (
 	"net"
-	"net/http"
-	_ "net/http/pprof"
 	"net/url"
 	"strconv"
 
@@ -21,11 +19,6 @@ type Runner interface {
 }
 
 func run() error {
-	if addr := *pprof; addr != "" {
-		go func() {
-			svc.Print(http.ListenAndServe(addr, nil))
-		}()
-	}
 	base := NewBase(*host, *port)
 	base.ErrorLog = errorLogger.Logger
 	servers := []*httpsvr.Server{base.Server}

@@ -22,7 +22,6 @@ var (
 	status    = flag.String("status", "", "Path to status file")
 	keep      = flag.Int("keep", 100, "Count of status files")
 	debug     = flag.Bool("debug", false, "debug")
-	pprof     = flag.String("pprof", "", "pprof port")
 )
 
 const commonFlag = `
@@ -108,6 +107,7 @@ func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), `Usage of %s:%s%s%s%s`, os.Args[0], commonFlag, serverFlag, clientFlag, svc.Usage())
 	}
+	flag.StringVar(&svc.DebugAddr, "pprof", "", "pprof port")
 	flag.StringVar(&svc.Options.UpdateURL, "update", "", "Update URL")
 	flags.SetConfigFile(filepath.Join(filepath.Dir(self), "config.ini"))
 	flags.Parse()
