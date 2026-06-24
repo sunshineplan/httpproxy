@@ -10,8 +10,8 @@ github.com/sunshineplan/progressbar v1.0.1 h1:elihSbf9rtXthvbcJkveg40yu4LrpV3SKJ
 github.com/sunshineplan/progressbar v1.0.1/go.mod h1:jYAymBnBOVIQlJS6IuPzXpzmNaq3sLjdtAVmF74Ugak=
 github.com/sunshineplan/service v1.0.26 h1:JSxOhLMY8POAI9/2N59TNI9E0VN2dBgOu5Nyoub5u0s=
 github.com/sunshineplan/service v1.0.26/go.mod h1:Uk4jEz8d4WtMTeGOs5WxIG1JT+2fL5MF+Jnelp9ZrdQ=
-github.com/sunshineplan/utils v0.1.84 h1:RMZK73sz8THyQueGn5qxu0+Bh+4QvSf+Z+OEikVZKyY=
-github.com/sunshineplan/utils v0.1.84/go.mod h1:K5M8sNh+F47+aHfABZIiFJHVhC2DhiNhGZ9SgBQPPdE=
+github.com/sunshineplan/utils v0.1.85 h1:SpxYIEIz6QuYcGOiSwD660zwVGrmAq+Z/qmjJGkJ/3w=
+github.com/sunshineplan/utils v0.1.85/go.mod h1:K5M8sNh+F47+aHfABZIiFJHVhC2DhiNhGZ9SgBQPPdE=
 golang.org/x/net v0.56.0 h1:Rw8j/hFzGvJUZwNBXnAtf5sVDVt+65SK2C7IxCxZt5o=
 golang.org/x/net v0.56.0/go.mod h1:D3Ku6r+V6JROoZK144D2XfMHFcMq/0zSfLelVTCFKec=
 golang.org/x/sys v0.46.0 h1:noSf2Fq6F8DBgS+LysIkx7rIExoNHJsxOAtPp4rthXw=
