@@ -64,6 +64,8 @@ go build
     	Username for Basic Authentication
   --password <string>
     	Password for Basic Authentication
+  --autoproxy <string>
+    	Auto proxy listening port
 ```
 
 ### Service Command
@@ -104,10 +106,11 @@ error-log  = /var/log/httpproxy/error.log
 ### config.ini(client)
 
 ```
-port     = 8888
-proxy    = https://proxy:443
-username = proxy
-password = proxy
+port      = 8888
+autoproxy = 8889
+proxy     = https://proxy:443
+username  = proxy
+password  = proxy
 ```
 
 ### whitelist
