@@ -12,8 +12,8 @@ github.com/sunshineplan/service v1.0.26 h1:JSxOhLMY8POAI9/2N59TNI9E0VN2dBgOu5Nyo
 github.com/sunshineplan/service v1.0.26/go.mod h1:Uk4jEz8d4WtMTeGOs5WxIG1JT+2fL5MF+Jnelp9ZrdQ=
 github.com/sunshineplan/utils v0.1.85 h1:SpxYIEIz6QuYcGOiSwD660zwVGrmAq+Z/qmjJGkJ/3w=
 github.com/sunshineplan/utils v0.1.85/go.mod h1:K5M8sNh+F47+aHfABZIiFJHVhC2DhiNhGZ9SgBQPPdE=
-golang.org/x/net v0.57.0 h1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=
-golang.org/x/net v0.57.0/go.mod h1:KpXc8iv+r3XplLAG/f7Jsf9RPszJzdR0f58q9vGOuEU=
+golang.org/x/net v0.58.0 h1:ynWG7rqYi4ccpTEuPZ2QGWHktVEM9DMCj9yzDE0Q7To=
+golang.org/x/net v0.58.0/go.mod h1:YwCddHnFlT7eLQqVprV19OnhLGtc5xOKgE0RyqgfWAU=
 golang.org/x/sys v0.47.0 h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=
 golang.org/x/sys v0.47.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=
 golang.org/x/time v0.15.0 h1:bbrp8t3bGUeFOx08pvsMYRTCVSMk89u4tKbNOZbp88U=
