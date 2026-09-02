@@ -15,6 +15,10 @@ import (
 var (
 	host      = flag.String("host", "", "Listening host")
 	port      = flag.String("port", "", "Listening port")
+	local     = flag.String("local", "", "Additional local listening port")
+	https     = flag.Bool("https", false, "Serve as HTTPS proxy server")
+	cert      = flag.String("cert", "", "Path to certificate file")
+	privkey   = flag.String("privkey", "", "Path to private key file")
 	accesslog = flag.String("access-log", "", "Path to access log file")
 	errorlog  = flag.String("error-log", "", "Path to error log file")
 	secrets   = flag.String("secrets", "", "Path to secrets file for Basic Authentication")
@@ -30,6 +34,14 @@ common:
     	Listening host
   --port <number>
     	Listening port
+  --local <number>
+    	Additional local listening port
+  --https
+    	Serve as HTTPS proxy server
+  --cert <file>
+    	Path to certificate file
+  --privkey <file>
+    	Path to private key file
   --access-log <file>
     	Path to access log file
   --error-log <file>
@@ -44,23 +56,6 @@ common:
     	Count of status files (default: 100)
   --update <url>
     	Update URL
-`
-
-// server flags
-var (
-	https   = flag.Bool("https", false, "Serve as HTTPS proxy server")
-	cert    = flag.String("cert", "", "Path to certificate file")
-	privkey = flag.String("privkey", "", "Path to private key file")
-)
-
-const serverFlag = `
-server side:
-  --https
-    	Serve as HTTPS proxy server
-  --cert <file>
-    	Path to certificate file
-  --privkey <file>
-    	Path to private key file
 `
 
 // client flags
@@ -105,7 +100,7 @@ func main() {
 	recordFile = filepath.Join(filepath.Dir(self), "database")
 
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), `Usage of %s:%s%s%s%s`, os.Args[0], commonFlag, serverFlag, clientFlag, svc.Usage())
+		fmt.Fprintf(flag.CommandLine.Output(), `Usage of %s:%s%s%s`, os.Args[0], commonFlag, clientFlag, svc.Usage())
 	}
 	flag.StringVar(&svc.DebugAddr, "pprof", "", "pprof port")
 	flag.StringVar(&svc.Options.UpdateURL, "update", "", "Update URL")

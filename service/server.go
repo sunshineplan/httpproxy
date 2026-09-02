@@ -12,9 +12,6 @@ import (
 
 type Server struct {
 	*Base
-	tls     bool
-	cert    string
-	privkey string
 }
 
 func NewServer(base *Base) *Server {
@@ -25,20 +22,6 @@ func NewServer(base *Base) *Server {
 	s.ReadHeaderTimeout = time.Second * 4
 	s.WriteTimeout = time.Minute * 10
 	return s
-}
-
-func (s *Server) SetTLS(cert, privkey string) *Server {
-	s.tls = true
-	s.cert = cert
-	s.privkey = privkey
-	return s
-}
-
-func (s *Server) Run() error {
-	if s.tls {
-		return s.RunTLS(s.cert, s.privkey)
-	}
-	return s.Base.Run()
 }
 
 func (*Server) HTTP(user user, lim *limiter.Limiter, w http.ResponseWriter, r *http.Request) {
