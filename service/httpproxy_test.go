@@ -194,7 +194,8 @@ func TestTLS(t *testing.T) {
 		os.Remove(privkey)
 	}()
 
-	s := NewServer(NewBase("", getPort(t))).SetTLS(cert, privkey)
+	s := NewServer(NewBase("", getPort(t)))
+	s.SetTLS(cert, privkey)
 	go s.Run()
 	defer s.Shutdown(context.Background())
 

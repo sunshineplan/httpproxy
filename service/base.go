@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net"
 	"net/http"
 
 	"github.com/sunshineplan/httpproxy/auth"
@@ -11,6 +12,10 @@ import (
 
 type Base struct {
 	*httpsvr.Server
+	tls       bool
+	cert      string
+	privkey   string
+	local     string
 	accounts  *container.Map[auth.Basic, *limit]
 	whitelist *container.Map[allow, *limit]
 }
@@ -115,4 +120,38 @@ func (base *Base) Auth(w http.ResponseWriter, r *http.Request) (user, *limiter.L
 		http.Error(w, "access not allow", http.StatusForbidden)
 		return user{}, nil, false
 	}
+}
+
+func (base *Base) SetTLS(cert, privkey string) {
+	base.tls = true
+	base.cert = cert
+	base.privkey = privkey
+}
+
+func (base *Base) SetLocal(local string) {
+	base.local = local
+}
+
+func (base *Base) Run() error {
+	c := make(chan error, 1)
+	go func() {
+		if base.tls {
+			c <- base.RunTLS(base.cert, base.privkey)
+		} else {
+			c <- base.Server.Run()
+		}
+	}()
+	if base.local != "" {
+		if listener, err := net.Listen("tcp4", "127.0.0.1:"+base.local); err != nil {
+			base.Printf("failed to listen tcp4: %v", err)
+		} else {
+			go base.ServeListener(listener)
+		}
+		if listener, err := net.Listen("tcp6", "[::1]:"+base.local); err != nil {
+			base.Printf("failed to listen tcp6: %v", err)
+		} else {
+			go base.ServeListener(listener)
+		}
+	}
+	return <-c
 }

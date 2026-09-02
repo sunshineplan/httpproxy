@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/sunshineplan/httpproxy"
 	"github.com/sunshineplan/httpproxy/auth"
@@ -35,6 +36,10 @@ func NewClient(base *Base, u *url.URL) (*Client, error) {
 	}
 	c := &Client{Base: base, u: u, proxy: d}
 	c.Base.Handler = c.Handler(false)
+	c.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler))
+	c.ReadTimeout = time.Minute * 10
+	c.ReadHeaderTimeout = time.Second * 4
+	c.WriteTimeout = time.Minute * 10
 	return c, nil
 }
 

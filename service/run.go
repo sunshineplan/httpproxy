@@ -31,6 +31,9 @@ func run() error {
 		if *https {
 			s.SetTLS(*cert, *privkey)
 		}
+		if *local != "" {
+			s.SetLocal(*local)
+		}
 		runner = s
 	} else {
 		if base.Port == "" {
@@ -39,6 +42,12 @@ func run() error {
 		c, err := NewClient(base, parseProxy(*proxyAddr))
 		if err != nil {
 			return err
+		}
+		if *https {
+			c.SetTLS(*cert, *privkey)
+		}
+		if *local != "" {
+			c.SetLocal(*local)
 		}
 		if *username != "" || *password != "" {
 			c.SetProxyAuth(&proxy.Auth{User: *username, Password: *password})
