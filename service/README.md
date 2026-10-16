@@ -46,15 +46,10 @@ go build
     	Path to status file
   --keep number
     	Count of status files (default: 100)
+  --agent <regexp>
+    	User-Agent regular expression allowed to receive a proxy authentication challenge
   --update <url>
     	Update URL
-```
-
-### Server Command
-
-```
-	--agent <regexp>
-			User-Agent regular expression allowed to receive a proxy authentication challenge
 ```
 
 ### Client Command

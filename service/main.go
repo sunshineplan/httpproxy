@@ -25,6 +25,7 @@ var (
 	whitelist = flag.String("whitelist", "", "Path to whitelist file")
 	status    = flag.String("status", "", "Path to status file")
 	keep      = flag.Int("keep", 100, "Count of status files")
+	agent     = flag.String("agent", "", "User-Agent regular expression allowed to receive a proxy authentication challenge")
 	debug     = flag.Bool("debug", false, "debug")
 )
 
@@ -54,19 +55,10 @@ common:
     	Path to status file
   --keep number
     	Count of status files (default: 100)
+  --agent <regexp>
+    	User-Agent regular expression allowed to receive a proxy authentication challenge
   --update <url>
     	Update URL
-`
-
-// server flags
-var (
-	agent = flag.String("agent", "", "User-Agent regular expression allowed to receive a proxy authentication challenge")
-)
-
-const serverFlag = `
-server side:
-  --agent <regexp>
-		User-Agent regular expression allowed to receive a proxy authentication challenge
 `
 
 // client flags
@@ -111,7 +103,7 @@ func main() {
 	recordFile = filepath.Join(filepath.Dir(self), "database")
 
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), `Usage of %s:%s%s%s%s`, os.Args[0], commonFlag, serverFlag, clientFlag, svc.Usage())
+		fmt.Fprintf(flag.CommandLine.Output(), `Usage of %s:%s%s%s`, os.Args[0], commonFlag, clientFlag, svc.Usage())
 	}
 	flag.StringVar(&svc.DebugAddr, "pprof", "", "pprof port")
 	flag.StringVar(&svc.Options.UpdateURL, "update", "", "Update URL")
