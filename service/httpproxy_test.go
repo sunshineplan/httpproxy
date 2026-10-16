@@ -300,3 +300,37 @@ func TestAuth(t *testing.T) {
 		}
 	}
 }
+
+func TestAuthAgentRegexp(t *testing.T) {
+	base := NewBase("", "")
+	base.accounts.Store(auth.Basic{Username: "server", Password: "server_password"}, &limit{speed: limiter.New(limiter.Inf)})
+	if err := base.SetAgent(`^AllowedAgent/`); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, testcase := range []struct {
+		name               string
+		userAgent          string
+		proxyAuthorization string
+		wantStatus         int
+	}{
+		{"matching agent", "AllowedAgent/1.0", "", http.StatusProxyAuthRequired},
+		{"non-matching agent", "OtherAgent/1.0", "", http.StatusNotFound},
+		{"non-matching agent with invalid credentials", "OtherAgent/1.0", "Basic d3Jvbmc6Y3JlZGVudGlhbHM=", http.StatusNotFound},
+	} {
+		t.Run(testcase.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "http://example.com", nil)
+			req.Header.Set("User-Agent", testcase.userAgent)
+			if testcase.proxyAuthorization != "" {
+				req.Header.Set("Proxy-Authorization", testcase.proxyAuthorization)
+			}
+			response := httptest.NewRecorder()
+
+			base.Auth(response, req)
+
+			if response.Code != testcase.wantStatus {
+				t.Errorf("expected status %d, got %d", testcase.wantStatus, response.Code)
+			}
+		})
+	}
+}
