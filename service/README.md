@@ -28,17 +28,6 @@ go build
     	Listening host
   --port <number>
     	Listening port
-  --access-log <file>
-    	Path to access log file
-  --error-log <file>
-    	Path to error log file
-  --update <url>
-    	Update URL
-```
-
-### Server Command
-
-```
   --https
     	Serve as HTTPS proxy server
   --cert <file>
@@ -49,10 +38,23 @@ go build
     	Path to secrets file for Basic Authentication
   --whitelist <file>
     	Path to whitelist file
+  --access-log <file>
+    	Path to access log file
+  --error-log <file>
+    	Path to error log file
   --status <file>
     	Path to status file
   --keep number
     	Count of status files (default: 100)
+  --update <url>
+    	Update URL
+```
+
+### Server Command
+
+```
+	--agent <regexp>
+			User-Agent regular expression allowed to receive a proxy authentication challenge
 ```
 
 ### Client Command

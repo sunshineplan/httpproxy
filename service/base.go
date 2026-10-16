@@ -3,6 +3,7 @@ package main
 import (
 	"net"
 	"net/http"
+	"regexp"
 
 	"github.com/sunshineplan/httpproxy/auth"
 	"github.com/sunshineplan/limiter"
@@ -16,6 +17,7 @@ type Base struct {
 	cert      string
 	privkey   string
 	local     string
+	agent     *regexp.Regexp
 	accounts  *container.Map[auth.Basic, *limit]
 	whitelist *container.Map[allow, *limit]
 }
@@ -99,14 +101,25 @@ func (base *Base) Auth(w http.ResponseWriter, r *http.Request) (user, *limiter.L
 	case hasAccount:
 		auth, ok := auth.ParseBasic(r)
 		if !ok {
-			authRequired.Do(func() { accessLogger.Printf("%s Proxy Authentication Required", r.RemoteAddr) })
-			w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
-			http.Error(w, "", http.StatusProxyAuthRequired)
-			return user{}, nil, false
+			if agent := r.Header.Get("user-agent"); base.allowAgent(agent) {
+				authRequired.Do(func() { accessLogger.Printf("%s[%s] Proxy Authentication Required", r.RemoteAddr, agent) })
+				w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
+				http.Error(w, "", http.StatusProxyAuthRequired)
+				return user{}, nil, false
+			} else {
+				authFailed.Do(func() { errorLogger.Printf("%s[%s] Proxy Authentication Not Allowed", r.RemoteAddr, agent) })
+				http.Error(w, "not found", http.StatusNotFound)
+				return user{}, nil, false
+			}
 		} else if found, exceeded, limit := base.checkAccount(auth); !found {
-			authFailed.Do(func() { errorLogger.Printf("%s Proxy Authentication Failed", r.RemoteAddr) })
-			w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
-			http.Error(w, "", http.StatusProxyAuthRequired)
+			agent := r.Header.Get("user-agent")
+			authFailed.Do(func() { errorLogger.Printf("%s[%s] Proxy Authentication Failed - %v", r.RemoteAddr, agent, auth) })
+			if base.allowAgent(agent) {
+				w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
+				http.Error(w, "", http.StatusProxyAuthRequired)
+			} else {
+				http.Error(w, "not found", http.StatusNotFound)
+			}
 			return user{}, nil, false
 		} else if found && exceeded {
 			limit.st.Do(func() { accessLogger.Printf("%s[%s] Exceeded traffic limit", r.RemoteAddr, auth.Username) })
@@ -120,6 +133,22 @@ func (base *Base) Auth(w http.ResponseWriter, r *http.Request) (user, *limiter.L
 		http.Error(w, "access not allow", http.StatusForbidden)
 		return user{}, nil, false
 	}
+}
+
+func (base *Base) allowAgent(agent string) bool {
+	if base.agent != nil {
+		return base.agent.MatchString(agent)
+	}
+	return true
+}
+
+func (base *Base) SetAgent(pattern string) error {
+	agent, err := regexp.Compile(pattern)
+	if err != nil {
+		return err
+	}
+	base.agent = agent
+	return nil
 }
 
 func (base *Base) SetTLS(cert, privkey string) {

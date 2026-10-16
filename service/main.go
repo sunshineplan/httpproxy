@@ -58,6 +58,17 @@ common:
     	Update URL
 `
 
+// server flags
+var (
+	agent = flag.String("agent", "", "User-Agent regular expression allowed to receive a proxy authentication challenge")
+)
+
+const serverFlag = `
+server side:
+  --agent <regexp>
+		User-Agent regular expression allowed to receive a proxy authentication challenge
+`
+
 // client flags
 var (
 	proxyAddr = flag.String("proxy", "", "Proxy address")
@@ -100,7 +111,7 @@ func main() {
 	recordFile = filepath.Join(filepath.Dir(self), "database")
 
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), `Usage of %s:%s%s%s`, os.Args[0], commonFlag, clientFlag, svc.Usage())
+		fmt.Fprintf(flag.CommandLine.Output(), `Usage of %s:%s%s%s%s`, os.Args[0], commonFlag, serverFlag, clientFlag, svc.Usage())
 	}
 	flag.StringVar(&svc.DebugAddr, "pprof", "", "pprof port")
 	flag.StringVar(&svc.Options.UpdateURL, "update", "", "Update URL")

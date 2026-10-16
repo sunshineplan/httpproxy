@@ -24,6 +24,11 @@ func run() error {
 	servers := []*httpsvr.Server{base.Server}
 	var runner Runner
 	if *proxyAddr == "" {
+		if *agent != "" {
+			if err := base.SetAgent(*agent); err != nil {
+				return err
+			}
+		}
 		if base.Port == "" {
 			base.Port = defaultServerPort
 		}
