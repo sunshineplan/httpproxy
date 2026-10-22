@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sunshineplan/utils/httpsvr"
 	"github.com/sunshineplan/utils/retry"
 	"github.com/sunshineplan/utils/txt"
 	"golang.org/x/net/proxy"
@@ -19,7 +18,7 @@ import (
 
 type Autoproxy struct {
 	sync.RWMutex
-	*httpsvr.Server
+	*Base
 	*proxy.PerHost
 }
 

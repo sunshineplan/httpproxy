@@ -75,11 +75,15 @@ func (c *Client) SetTLSConfig(config *tls.Config) *Client {
 
 func (c *Client) SetAutoproxy(port string, autoproxy *proxy.PerHost) *Client {
 	if port != "" && autoproxy != nil {
-		server := httpsvr.New()
-		server.Handler = c.Handler(true)
-		server.Host = c.Base.Host
-		server.Port = port
-		c.autoproxy = &Autoproxy{Server: server, PerHost: autoproxy}
+		base := &Base{Server: httpsvr.New()}
+		base.Handler = c.Handler(true)
+		base.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler))
+		base.ReadTimeout = time.Minute * 10
+		base.ReadHeaderTimeout = time.Second * 4
+		base.WriteTimeout = time.Minute * 10
+		base.Host = c.Host
+		base.Port = port
+		c.autoproxy = &Autoproxy{Base: base, PerHost: autoproxy}
 	}
 	return c
 }

@@ -59,7 +59,12 @@ func run() error {
 		}
 		if *autoproxy != "" {
 			c.SetAutoproxy(*autoproxy, initAutoproxy(c))
-			servers = append(servers, c.autoproxy.Server)
+			if c.autoproxy != nil {
+				if *https {
+					c.autoproxy.SetTLS(*cert, *privkey)
+				}
+				servers = append(servers, c.autoproxy.Server)
+			}
 		}
 		runner = c
 	}
