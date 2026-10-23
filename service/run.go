@@ -20,15 +20,15 @@ type Runner interface {
 
 func run() error {
 	base := NewBase(*host, *port)
+	if *agent != "" {
+		if err := base.SetAgent(*agent); err != nil {
+			return err
+		}
+	}
 	base.ErrorLog = errorLogger.Logger
 	servers := []*httpsvr.Server{base.Server}
 	var runner Runner
 	if *proxyAddr == "" {
-		if *agent != "" {
-			if err := base.SetAgent(*agent); err != nil {
-				return err
-			}
-		}
 		if base.Port == "" {
 			base.Port = defaultServerPort
 		}
