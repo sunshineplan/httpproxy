@@ -4,6 +4,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"time"
 
 	"github.com/sunshineplan/httpproxy/auth"
 	"github.com/sunshineplan/limiter"
@@ -13,20 +14,22 @@ import (
 
 type Base struct {
 	*httpsvr.Server
-	tls       bool
-	cert      string
-	privkey   string
-	local     string
-	agent     *regexp.Regexp
-	accounts  *container.Map[auth.Basic, *limit]
-	whitelist *container.Map[allow, *limit]
+	tls         bool
+	cert        string
+	privkey     string
+	local       string
+	agent       *regexp.Regexp
+	accounts    *container.Map[auth.Basic, *limit]
+	whitelist   *container.Map[allow, *limit]
+	lastLogTime *container.Map[string, time.Time]
 }
 
 func NewBase(host, port string) *Base {
 	base := &Base{
-		Server:    httpsvr.New(),
-		accounts:  container.NewMap[auth.Basic, *limit](),
-		whitelist: container.NewMap[allow, *limit](),
+		Server:      httpsvr.New(),
+		accounts:    container.NewMap[auth.Basic, *limit](),
+		whitelist:   container.NewMap[allow, *limit](),
+		lastLogTime: container.NewMap[string, time.Time](),
 	}
 	base.Host = host
 	base.Port = port
@@ -79,6 +82,16 @@ func (base *Base) checkAccount(auth auth.Basic) (found bool, exceeded bool, limi
 	}
 }
 
+func (base *Base) checkLog(user string) bool {
+	if t, ok := base.lastLogTime.Load(user); ok {
+		if time.Since(t) < time.Hour {
+			return true
+		}
+	}
+	base.lastLogTime.Store(user, time.Now())
+	return false
+}
+
 type user struct {
 	name      string
 	whitelist bool
@@ -99,9 +112,10 @@ func (base *Base) Auth(w http.ResponseWriter, r *http.Request) (user, *limiter.L
 		}
 		fallthrough
 	case hasAccount:
+		agent := r.Header.Get("user-agent")
 		auth, ok := auth.ParseBasic(r)
 		if !ok {
-			if agent := r.Header.Get("user-agent"); base.allowAgent(agent) {
+			if base.allowAgent(agent) {
 				authRequired.Do(func() { accessLogger.Printf("%s[%s] Proxy Authentication Required", r.RemoteAddr, agent) })
 				w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
 				http.Error(w, "", http.StatusProxyAuthRequired)
@@ -112,7 +126,6 @@ func (base *Base) Auth(w http.ResponseWriter, r *http.Request) (user, *limiter.L
 				return user{}, nil, false
 			}
 		} else if found, exceeded, limit := base.checkAccount(auth); !found {
-			agent := r.Header.Get("user-agent")
 			authFailed.Do(func() { errorLogger.Printf("%s[%s] Proxy Authentication Failed - %v", r.RemoteAddr, agent, auth) })
 			if base.allowAgent(agent) {
 				w.Header().Add("Proxy-Authenticate", `Basic realm="HTTP(S) Proxy Server"`)
@@ -126,6 +139,12 @@ func (base *Base) Auth(w http.ResponseWriter, r *http.Request) (user, *limiter.L
 			http.Error(w, "exceeded traffic limit", http.StatusForbidden)
 			return user{}, nil, false
 		} else {
+			if !base.checkLog(auth.Username) {
+				if agent != "" {
+					agent = "(" + agent + ")"
+				}
+				accessLogger.Printf("%s[%s]%s Proxy Authentication Succeeded", r.RemoteAddr, auth.Username, agent)
+			}
 			return user{auth.Username, false}, limit.speed, true
 		}
 	default:
